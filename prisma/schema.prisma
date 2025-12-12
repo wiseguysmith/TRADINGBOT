@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Trade {
+  id            Int      @id @default(autoincrement())
+  symbol        String
+  side          String
+  size          Float
+  entryPrice    Float
+  exitPrice     Float?
+  pnl           Float?
+  timestamp     DateTime @default(now())
+}
+
+model Position {
+  id         Int      @id @default(autoincrement())
+  symbol     String   @unique
+  size       Float
+  avgPrice   Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Signal {
+  id         Int      @id @default(autoincrement())
+  symbol     String
+  source     String   // "technical" | "quant" | "combined"
+  value      Float
+  createdAt  DateTime @default(now())
+}
+
+model StrategyConfig {
+  id         Int      @id @default(autoincrement())
+  name       String
+  parameters Json
+}
