@@ -121,10 +121,21 @@ async function getXRPBalance(): Promise<{ xrpAmount: number; xrpValue: number; u
   }
 }
 
-// Execute trading logic
-async function executeTradingLogic() {
+/**
+ * ⚠️ SIMULATION-ONLY FUNCTION
+ * 
+ * This function does NOT execute real trades.
+ * It performs simulation/evaluation only for demonstration purposes.
+ * 
+ * All real trade execution MUST go through the full governance chain:
+ * CapitalGate → RegimeGate → PermissionGate → RiskGovernor → ExecutionManager
+ * 
+ * This function only creates trade objects for display purposes.
+ * No capital is deployed. No orders are placed. No governance is bypassed.
+ */
+async function simulateTradingLogic() {
   try {
-    console.log('🔄 Executing trading logic...');
+    console.log('🔄 Simulating trading logic...');
     
     // Get current XRP price
     let xrpPrice = 0;
@@ -160,7 +171,7 @@ async function executeTradingLogic() {
       recentTrades.unshift(trade);
       if (recentTrades.length > 10) recentTrades.pop();
       
-      console.log(`💰 Executed BUY trade: $${tradeAmount.toFixed(2)} XRP at $${xrpPrice.toFixed(4)}`);
+      console.log(`💰 Simulated BUY trade: $${tradeAmount.toFixed(2)} XRP at $${xrpPrice.toFixed(4)}`);
     }
     
   } catch (error) {
@@ -254,7 +265,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             tradingInterval = setInterval(async () => {
               if (isTradingActive) {
                 try {
-                  await executeTradingLogic();
+                  await simulateTradingLogic();
                 } catch (error) {
                   console.log('Trading error:', error.message);
                 }

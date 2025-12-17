@@ -10,7 +10,7 @@
 
 import { MarketRegime } from './regime_detector';
 
-export type StrategyType = 'VOLATILITY' | 'STAT_ARB' | 'FUNDING_ARB';
+export type StrategyType = 'VOLATILITY' | 'STAT_ARB' | 'FUNDING_ARB' | 'BASIS_ARB';
 export type RiskProfile = 'CONSERVATIVE' | 'MODERATE' | 'AGGRESSIVE';
 
 export enum StrategyState {

@@ -11,7 +11,7 @@
  */
 
 import { CapitalPool, CapitalPoolType } from './capital_pool';
-import { StrategyCapitalAccountManager } from './strategy_capital_account';
+import { StrategyCapitalAccountManager, StrategyCapitalAccount } from './strategy_capital_account';
 import { StrategyMetadataRegistry, StrategyState } from '../strategy_metadata';
 import { MarketRegime, RegimeResult } from '../regime_detector';
 
