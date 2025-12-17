@@ -175,3 +175,5 @@ async def get_quant_signals(request: QuantSignalsRequest):
         logger.error(f"Error in /signals endpoint: {e}", exc_info=True)
         raise handle_exception(e, "quant_signals")
 
+
+

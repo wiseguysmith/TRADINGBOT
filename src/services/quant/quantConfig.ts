@@ -1,0 +1,9 @@
+import { CONFIG } from "../../config";
+
+// Re-export from unified config
+export const QUANT_API_URL = CONFIG.PYTHON_API_URL;
+export const QUANT_TIMEOUT_MS = CONFIG.QUANT_TIMEOUT_MS;
+export const QUANT_RETRY_COUNT = CONFIG.QUANT_RETRY_COUNT;
+export const QUANT_SIGNAL_WEIGHT = CONFIG.QUANT_SIGNAL_WEIGHT;
+export const TRADITIONAL_SIGNAL_WEIGHT = CONFIG.TRADITIONAL_SIGNAL_WEIGHT;
+

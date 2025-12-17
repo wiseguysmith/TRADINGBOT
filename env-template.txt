@@ -1,0 +1,51 @@
+# ========================================
+# AI Trading Bot Environment Variables
+# ========================================
+# Copy this file to .env and fill in your credentials
+# cp env-template.txt .env
+
+# ========================================
+# KUCOIN API CREDENTIALS (RECOMMENDED - EASIEST SETUP)
+# ========================================
+# Get these from: https://www.kucoin.com/account/api
+# Make sure to enable: Spot Trading, Futures Trading
+# Disable: Withdraw, Transfer (for security)
+KUCOIN_API_KEY=your_kucoin_api_key_here
+KUCOIN_SECRET_KEY=your_kucoin_secret_key_here
+KUCOIN_PASSPHRASE=your_kucoin_trading_password_here
+
+# ========================================
+# KRAKEN API CREDENTIALS (ALTERNATIVE)
+# ========================================
+# Get these from: https://www.kraken.com/u/settings/api
+# Make sure to enable: Query Funds, Query Orders, Add & Cancel Orders
+KRAKEN_API_KEY=your_kraken_api_key_here
+KRAKEN_API_SECRET=your_kraken_private_key_here
+
+# ========================================
+# TWILIO SMS CONFIGURATION (OPTIONAL)
+# ========================================
+# Get these from: https://console.twilio.com/
+# Free account includes $15-20 credit for testing
+TWILIO_ACCOUNT_SID=your_twilio_account_sid_here
+TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
+TWILIO_PHONE_NUMBER=your_twilio_phone_number_here
+NOTIFICATION_PHONE_NUMBER=your_personal_phone_number_here
+
+# ========================================
+# TRADING CONFIGURATION
+# ========================================
+# These are set for $100 investment testing
+MAX_DRAWDOWN_PERCENTAGE=25
+RISK_PER_TRADE_PERCENTAGE=20
+VOLATILITY_LOOKBACK_PERIOD=14
+
+# ========================================
+# DEVELOPMENT SETTINGS
+# ========================================
+NODE_ENV=development
+NEXT_PUBLIC_KUCOIN_API_KEY=${KUCOIN_API_KEY}
+NEXT_PUBLIC_KUCOIN_SECRET_KEY=${KUCOIN_SECRET_KEY}
+NEXT_PUBLIC_KUCOIN_PASSPHRASE=${KUCOIN_PASSPHRASE}
+NEXT_PUBLIC_KRAKEN_API_KEY=${KRAKEN_API_KEY}
+NEXT_PUBLIC_KRAKEN_API_SECRET=${KRAKEN_API_SECRET} 

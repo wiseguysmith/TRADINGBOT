@@ -1,32 +1,19 @@
-import ccxt
 import pandas as pd
-import os
+import ccxt
 
-print("✅ Script is running...")
+# Initialize Kraken Exchange API
+kraken = ccxt.kraken()
 
-try:
-    print("✅ Connecting to Kraken API...")
-    exchange = ccxt.kraken()  # Switching to Kraken
+# Fetch BTC/USDT market data
+bars = kraken.fetch_ohlcv("BTC/USDT", timeframe="1h", limit=500)
 
-    print("✅ Fetching BTC/USD historical data from Kraken...")
-    ohlcv = exchange.fetch_ohlcv('BTC/USD', timeframe='1h', limit=100)
+# Convert to DataFrame
+df = pd.DataFrame(bars, columns=["timestamp", "open", "high", "low", "close", "volume"])
 
-    print(f"✅ Successfully fetched {len(ohlcv)} data points!")
+# Convert timestamp to readable date
+df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
 
-    # Convert to DataFrame
-    df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+# Save to CSV
+df.to_csv("btc_usdt_data.csv", index=False)
 
-    # Save to CSV inside the 'data' folder
-    data_path = os.path.join(os.getcwd(), "data", "btc_usd_data.csv")
-    print(f"✅ Saving data to {data_path}...")
-
-    df.to_csv(data_path, index=False)
-
-    if os.path.exists(data_path):
-        print(f"🎉 Market data successfully saved to {data_path}!")
-    else:
-        print("❌ File not found after saving. Something went wrong.")
-
-except Exception as e:
-    print(f"❌ An error occurred: {e}")
+print("✅ Market data saved as btc_usdt_data.csv!")

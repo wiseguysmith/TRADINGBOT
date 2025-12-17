@@ -1,0 +1,13 @@
+﻿python_api\__init__.py
+python_api\config\settings.py
+python_api\main.py
+python_api\README.md
+python_api\requirements.txt
+python_api\routers\alpha_signals.py
+python_api\services\alt_data_service.py
+python_api\services\microstructure_service.py
+python_api\services\options_flow_service.py
+python_api\services\speed_service.py
+python_api\services\volatility_service.py
+python_api\utils\error_handler.py
+python_api\utils\response_models.py
