@@ -3,6 +3,9 @@ import { calculateMACD, calculateRSI, calculateBollingerBands } from '../utils/i
 import { NotificationService, NotificationType } from './notificationService';
 import { StrategyService } from './strategyService';
 import { CONFIG } from '../config';
+import { ExecutionManager } from '../../core/execution_manager';
+import { createTradeRequest, executeTradeWithRegimeCheck } from '../../core/governance_integration';
+import { RegimeGate } from '../../core/regime_gate';
 
 interface Position {
   symbol: string;
@@ -23,19 +26,23 @@ interface Balance {
 }
 
 export class TradingService {
-  private client: KrakenWrapper;
+  private client: KrakenWrapper; // PHASE 1: Only for market data, NOT execution
   private positions: Map<string, Position>;
   private config: TradeConfig;
   private notificationService: NotificationService;
   private strategyService: StrategyService;
+  private executionManager?: ExecutionManager; // PHASE 1: Required for execution
+  private regimeGate?: RegimeGate | null; // PHASE 2: Regime-aware governance (optional)
   private autoTradeInterval: NodeJS.Timeout | null = null;
 
   constructor(
     apiKey: string, 
     apiSecret: string,
-    notificationService: NotificationService
+    notificationService: NotificationService,
+    executionManager?: ExecutionManager, // PHASE 1: Governance - required for execution
+    regimeGate?: RegimeGate | null // PHASE 2: Regime-aware governance (optional)
   ) {
-    this.client = new KrakenWrapper(apiKey, apiSecret);
+    this.client = new KrakenWrapper(apiKey, apiSecret); // PHASE 1: Market data only
     this.positions = new Map();
     this.config = {
       maxDrawdown: CONFIG.MAX_DRAWDOWN_PERCENTAGE,
@@ -43,7 +50,10 @@ export class TradingService {
       volatilityPeriod: CONFIG.VOLATILITY_LOOKBACK_PERIOD
     };
     this.notificationService = notificationService;
-    this.strategyService = new StrategyService(this.client);
+    this.executionManager = executionManager;
+    this.regimeGate = regimeGate; // PHASE 2: Regime-aware governance
+    // PHASE 1: StrategyService does not receive exchange client
+    this.strategyService = new StrategyService();
   }
 
   async getOHLC(symbol: string) {
@@ -94,6 +104,12 @@ export class TradingService {
     return [];
   }
 
+  /**
+   * Place an order through ExecutionManager (governance enforced)
+   * 
+   * PHASE 1: All execution must go through ExecutionManager.
+   * This method coordinates order placement but does NOT execute directly.
+   */
   async placeOrder(
     symbol: string,
     side: 'buy' | 'sell',
@@ -102,6 +118,12 @@ export class TradingService {
     takeProfitPercent: number
   ): Promise<void> {
     try {
+      // PHASE 1: Governance - ExecutionManager is required
+      if (!this.executionManager) {
+        throw new Error('ExecutionManager not configured - governance required for trade execution');
+      }
+
+      // Get current market price for calculations
       const ticker = await this.client.getTickerInformation([symbol]);
       const currentPrice = parseFloat(ticker.result[symbol].c[0]);
       
@@ -113,13 +135,30 @@ export class TradingService {
         ? currentPrice * (1 + takeProfitPercent / 100)
         : currentPrice * (1 - takeProfitPercent / 100);
 
-      const order = await this.client.addOrder({
+      // PHASE 1: Create TradeRequest and execute through ExecutionManager
+      const request = createTradeRequest({
+        strategy: 'trading_service',
         pair: symbol,
-        type: side,
-        ordertype: 'market',
-        volume: size.toString()
+        action: side,
+        amount: size,
+        price: currentPrice,
+        stopLoss: stopLossPrice,
+        takeProfit: takeProfitPrice
       });
 
+      // PHASE 2: Execute with regime check (if regime gate is available)
+      const result = await executeTradeWithRegimeCheck(
+        this.executionManager,
+        this.regimeGate || null,
+        request,
+        symbol
+      );
+
+      if (!result.success) {
+        throw new Error(`Trade execution blocked by governance: ${symbol}`);
+      }
+
+      // Update positions only if execution succeeded
       if (side === 'buy') {
         const position: Position = {
           symbol,
@@ -267,6 +306,11 @@ export class TradingService {
     }
   }
 
+  /**
+   * Execute a trade through ExecutionManager (governance enforced)
+   * 
+   * PHASE 1: All execution must go through ExecutionManager.
+   */
   private async executeTrade(
     symbol: string,
     action: 'buy' | 'sell',
@@ -275,7 +319,7 @@ export class TradingService {
   ): Promise<void> {
     try {
       if (isTest) {
-        // Simulate trade in test mode
+        // Simulate trade in test mode (no execution)
         console.log(`TEST MODE: ${action} ${amount} ${symbol}`);
         await this.notificationService.sendNotification(
           NotificationType.TRADE_EXECUTION,
@@ -285,13 +329,35 @@ export class TradingService {
         return;
       }
 
-      // Real trading logic here
-      const order = await this.client.addOrder({
+      // PHASE 1: Governance - ExecutionManager is required for real execution
+      if (!this.executionManager) {
+        throw new Error('ExecutionManager not configured - governance required for trade execution');
+      }
+
+      // Get current market price
+      const ticker = await this.client.getTickerInformation([symbol]);
+      const currentPrice = parseFloat(ticker.result[symbol].c[0]);
+
+      // PHASE 1: Create TradeRequest and execute through ExecutionManager
+      const request = createTradeRequest({
+        strategy: 'trading_service',
         pair: symbol,
-        type: action,
-        ordertype: 'market',
-        volume: amount.toString()
+        action,
+        amount,
+        price: currentPrice
       });
+
+      // PHASE 2: Execute with regime check (if regime gate is available)
+      const result = await executeTradeWithRegimeCheck(
+        this.executionManager,
+        this.regimeGate || null,
+        request,
+        symbol
+      );
+
+      if (!result.success) {
+        throw new Error(`Trade execution blocked by governance: ${symbol}`);
+      }
 
       await this.notificationService.sendNotification(
         NotificationType.TRADE_EXECUTION,

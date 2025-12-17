@@ -1,4 +1,4 @@
-import { KrakenWrapper } from './krakenWrapper';
+// PHASE 1: Removed KrakenWrapper import - strategies cannot access exchange adapters
 import { calculateMACD, calculateRSI, calculateBollingerBands, calculateEMA } from '../utils/indicators';
 import { 
   meanReversionStrategy, 
@@ -37,8 +37,15 @@ interface StrategyConfig {
   };
 }
 
+/**
+ * Strategy Service
+ * 
+ * PHASE 1: Strategies are pure signal generators.
+ * They cannot access exchange adapters or execute trades.
+ * All execution must go through ExecutionManager.
+ */
 export class StrategyService {
-  private client: KrakenWrapper;
+  // PHASE 1: Removed exchange client - strategies cannot access adapters
   private notificationService: NotificationService;
   private config: StrategyConfig = {
     maxInvestment: 20,        // $20 max per trade (20% of $100)
@@ -71,13 +78,28 @@ export class StrategyService {
   }> = new Map();
   private predictionModel: PricePredictionModel;
 
-  constructor(client: KrakenWrapper, notificationService?: NotificationService) {
-    this.client = client;
+  /**
+   * Constructor
+   * 
+   * PHASE 1: Strategies do NOT receive exchange clients.
+   * They generate signals only. Execution goes through ExecutionManager.
+   */
+  constructor(notificationService?: NotificationService) {
+    // PHASE 1: Removed exchange client parameter - strategies cannot access adapters
     this.notificationService = notificationService || new NotificationService();
     this.predictionModel = new PricePredictionModel();
   }
 
-  async checkArbitrageOpportunities(): Promise<{
+  /**
+   * Check arbitrage opportunities
+   * 
+   * PHASE 1: Strategies receive market data as parameters.
+   * They cannot fetch market data themselves.
+   */
+  async checkArbitrageOpportunities(marketData?: {
+    pairs?: any;
+    prices?: any;
+  }): Promise<{
     shouldTrade: boolean;
     symbol?: string;
     profit?: number;
@@ -87,9 +109,15 @@ export class StrategyService {
       return { shouldTrade: false };
     }
     
+    // PHASE 1: Market data must be provided - strategies cannot fetch it
+    if (!marketData || !marketData.pairs || !marketData.prices) {
+      console.warn('[STRATEGY_SERVICE] Market data required for arbitrage check - caller must provide');
+      return { shouldTrade: false };
+    }
+    
     try {
-      const pairs = await this.client.getTradablePairs();
-      const prices = await this.client.getTickerInformation(Object.keys(pairs));
+      const pairs = marketData.pairs;
+      const prices = marketData.prices;
 
       // Find triangular arbitrage opportunities
       const opportunities = this.findTriangularArbitrage(prices.result);
@@ -172,7 +200,12 @@ export class StrategyService {
     }
   }
 
-  async checkTrendFollowing(symbol: string): Promise<{
+  /**
+   * Check trend following signals
+   * 
+   * PHASE 1: Strategies receive market data as parameters.
+   */
+  async checkTrendFollowing(symbol: string, ohlcData?: any): Promise<{
     shouldTrade: boolean;
     action?: 'buy' | 'sell';
     reason?: string;
@@ -182,11 +215,17 @@ export class StrategyService {
       return { shouldTrade: false };
     }
     
+    // PHASE 1: Market data must be provided
+    if (!ohlcData || !ohlcData.result) {
+      console.warn('[STRATEGY_SERVICE] OHLC data required for trend following - caller must provide');
+      return { shouldTrade: false };
+    }
+    
     try {
-      const ohlc = await this.client.getOHLCData(symbol);
-      const candles = Object.values(ohlc.result)[0];
-      const closes = candles.map(candle => parseFloat(candle[4]));
-      const volumes = candles.map(candle => parseFloat(candle[5]));
+      const ohlc = ohlcData;
+      const candles = Object.values(ohlc.result)[0] as any[];
+      const closes = candles.map((candle: any) => parseFloat(candle[4]));
+      const volumes = candles.map((candle: any) => parseFloat(candle[5]));
       
       const result = trendFollowingStrategy(
         closes,
@@ -240,7 +279,12 @@ export class StrategyService {
     }
   }
 
-  async checkMeanReversion(symbol: string): Promise<{
+  /**
+   * Check mean reversion signals
+   * 
+   * PHASE 1: Strategies receive market data as parameters.
+   */
+  async checkMeanReversion(symbol: string, ohlcData?: any): Promise<{
     shouldTrade: boolean;
     action?: 'buy' | 'sell';
     reason?: string;
@@ -250,10 +294,16 @@ export class StrategyService {
       return { shouldTrade: false };
     }
     
+    // PHASE 1: Market data must be provided
+    if (!ohlcData || !ohlcData.result) {
+      console.warn('[STRATEGY_SERVICE] OHLC data required for mean reversion - caller must provide');
+      return { shouldTrade: false };
+    }
+    
     try {
-      const ohlc = await this.client.getOHLCData(symbol);
-      const candles = Object.values(ohlc.result)[0];
-      const closes = candles.map(candle => parseFloat(candle[4]));
+      const ohlc = ohlcData;
+      const candles = Object.values(ohlc.result)[0] as any[];
+      const closes = candles.map((candle: any) => parseFloat(candle[4]));
       
       const result = meanReversionStrategy(
         closes,
@@ -305,7 +355,12 @@ export class StrategyService {
     }
   }
 
-  async checkVolatilityBreakout(symbol: string): Promise<{
+  /**
+   * Check volatility breakout signals
+   * 
+   * PHASE 1: Strategies receive market data as parameters.
+   */
+  async checkVolatilityBreakout(symbol: string, ohlcData?: any): Promise<{
     shouldTrade: boolean;
     action?: 'buy' | 'sell';
     reason?: string;
@@ -315,11 +370,17 @@ export class StrategyService {
       return { shouldTrade: false };
     }
     
+    // PHASE 1: Market data must be provided
+    if (!ohlcData || !ohlcData.result) {
+      console.warn('[STRATEGY_SERVICE] OHLC data required for volatility breakout - caller must provide');
+      return { shouldTrade: false };
+    }
+    
     try {
-      const ohlc = await this.client.getOHLCData(symbol);
-      const candles = Object.values(ohlc.result)[0];
-      const closes = candles.map(candle => parseFloat(candle[4]));
-      const volumes = candles.map(candle => parseFloat(candle[5]));
+      const ohlc = ohlcData;
+      const candles = Object.values(ohlc.result)[0] as any[];
+      const closes = candles.map((candle: any) => parseFloat(candle[4]));
+      const volumes = candles.map((candle: any) => parseFloat(candle[5]));
       
       const result = volatilityBreakoutStrategy(
         closes,
@@ -351,14 +412,24 @@ export class StrategyService {
     }
   }
 
-  async setupGridTrading(symbol: string, gridCount: number = 10, gridSpread: number = 2.0): Promise<boolean> {
+  /**
+   * Setup grid trading levels
+   * 
+   * PHASE 1: Strategies receive market data as parameters.
+   */
+  async setupGridTrading(symbol: string, tickerData?: any, gridCount: number = 10, gridSpread: number = 2.0): Promise<boolean> {
     if (!this.config.enabled || !this.config.enabledStrategies.gridTrading) {
       return false;
     }
     
+    // PHASE 1: Market data must be provided
+    if (!tickerData || !tickerData.result) {
+      console.warn('[STRATEGY_SERVICE] Ticker data required for grid trading - caller must provide');
+      return false;
+    }
+    
     try {
-      // Get current price
-      const ticker = await this.client.getTickerInformation([symbol]);
+      const ticker = tickerData;
       const tickerResult = ticker.result as Record<string, { c: string[] }>;
       const price = parseFloat(tickerResult[symbol].c[0]);
       
@@ -388,7 +459,12 @@ export class StrategyService {
     }
   }
 
-  async checkGridLevels(symbol: string): Promise<{
+  /**
+   * Check grid trading levels
+   * 
+   * PHASE 1: Strategies receive market data as parameters.
+   */
+  async checkGridLevels(symbol: string, tickerData?: any): Promise<{
     shouldTrade: boolean;
     action?: 'buy' | 'sell';
     price?: number;
@@ -404,9 +480,14 @@ export class StrategyService {
       return { shouldTrade: false };
     }
     
+    // PHASE 1: Market data must be provided
+    if (!tickerData || !tickerData.result) {
+      console.warn('[STRATEGY_SERVICE] Ticker data required for grid levels - caller must provide');
+      return { shouldTrade: false };
+    }
+    
     try {
-      // Get current price
-      const ticker = await this.client.getTickerInformation([symbol]);
+      const ticker = tickerData;
       const tickerResult = ticker.result as Record<string, { c: string[] }>;
       const currentPrice = parseFloat(tickerResult[symbol].c[0]);
       

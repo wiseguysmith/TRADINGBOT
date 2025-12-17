@@ -8,6 +8,10 @@ import { MarketDataService, MarketData } from './marketDataService';
 import { StrategyService } from './strategyService';
 import { getQuantApiClient, QuantSignals } from './quant/quantApiClient';
 import { blendSignals, BlendedSignal } from './quant/signalBlender';
+import { ExecutionManager } from '../../core/execution_manager';
+import { createTradeRequest, executeTradeWithRegimeCheck } from '../../core/governance_integration';
+import { RegimeGate } from '../../core/regime_gate';
+import { CapitalGate } from '../../core/capital/capital_gate';
 
 export interface LiveTradeConfig {
   apiKey: string;
@@ -20,6 +24,9 @@ export interface LiveTradeConfig {
   tradingPairs: string[]; // Trading pairs to monitor
   strategies: Strategy[]; // Active strategies
   emergencyStop?: boolean; // Emergency stop flag
+  executionManager?: ExecutionManager; // PHASE 1: Governance - required for trade execution
+  regimeGate?: RegimeGate | null; // PHASE 2: Regime-aware governance (optional)
+  capitalGate?: CapitalGate | null; // PHASE 3: Capital governance (optional)
 }
 
 export interface LiveTradeResult {
@@ -41,6 +48,9 @@ export class LiveTradingEngine extends EventEmitter {
   private strategyService: StrategyService;
   private quantApiClient = getQuantApiClient();
   private config: LiveTradeConfig;
+  private executionManager?: ExecutionManager; // PHASE 1: Governance - required for execution
+  private regimeGate?: RegimeGate | null; // PHASE 2: Regime-aware governance
+  private capitalGate?: CapitalGate | null; // PHASE 3: Capital governance (optional)
   private _isRunning: boolean = false;
   private activePositions: Map<string, Position> = new Map();
   private dailyPnL: number = 0;
@@ -51,11 +61,15 @@ export class LiveTradingEngine extends EventEmitter {
   constructor(config: LiveTradeConfig) {
     super();
     this.config = config;
-    this.kraken = new KrakenWrapper(config.apiKey, config.apiSecret);
+    this.kraken = new KrakenWrapper(config.apiKey, config.apiSecret); // PHASE 1: Market data only
     this.riskManager = new RiskManager();
     this.portfolioManager = new PortfolioManager();
     this.marketDataService = new MarketDataService();
-    this.strategyService = new StrategyService(this.kraken);
+    // PHASE 1: StrategyService no longer receives exchange client
+    this.strategyService = new StrategyService();
+    this.executionManager = config.executionManager; // PHASE 1: Governance
+    this.regimeGate = config.regimeGate; // PHASE 2: Regime-aware governance
+    this.capitalGate = config.capitalGate; // PHASE 3: Capital governance
     
     // Set up event listeners
     this.setupEventListeners();
@@ -195,6 +209,8 @@ export class LiveTradingEngine extends EventEmitter {
 
   /**
    * Execute a trade based on strategy signal
+   * 
+   * PHASE 1: All execution must go through ExecutionManager for governance enforcement.
    */
   async executeTrade(signal: TradeSignal, pair: string, strategy: string): Promise<LiveTradeResult> {
     try {
@@ -209,12 +225,12 @@ export class LiveTradingEngine extends EventEmitter {
         };
       }
 
-      // Risk checks
-      const riskCheck = await this.riskManager.checkTradeRisk(signal, pair);
-      if (!riskCheck.allowed) {
+      // PHASE 1: Governance - ExecutionManager is required
+      if (!this.executionManager) {
+        console.error('[LIVE_TRADING_ENGINE] ⚠️ CRITICAL: ExecutionManager not configured - governance required');
         return {
           success: false,
-          error: `Risk check failed: ${riskCheck.reason}`,
+          error: 'ExecutionManager not configured - governance required for trade execution',
           timestamp: Date.now(),
           strategy,
           signal
@@ -236,23 +252,48 @@ export class LiveTradingEngine extends EventEmitter {
       // Calculate position size
       const positionSize = await this.calculatePositionSize(signal, pair, ticker.last);
       
-      // Execute the trade
-      let orderResult;
-      if (signal === TradeSignal.BUY) {
-        orderResult = await this.kraken.placeBuyOrder(pair, positionSize.quantity, positionSize.price);
-      } else if (signal === TradeSignal.SELL) {
-        orderResult = await this.kraken.placeSellOrder(pair, positionSize.quantity, positionSize.price);
-      } else {
+      // PHASE 1: Convert to TradeRequest and execute through ExecutionManager
+      const request = createTradeRequest({
+        strategy,
+        pair,
+        action: signal === TradeSignal.BUY ? 'buy' : 'sell',
+        amount: positionSize.quantity,
+        price: positionSize.price,
+        stopLoss: positionSize.price * (1 - (this.config.stopLossPercent / 100)),
+        takeProfit: positionSize.price * (1 + (this.config.takeProfitPercent / 100))
+      });
+
+      // PHASE 2 & 3: Execute with regime and capital checks
+      // Capital check → Regime check → Phase 1 governance
+      const result = await executeTradeWithRegimeCheck(
+        this.executionManager,
+        this.regimeGate || null,
+        this.capitalGate || null,
+        request,
+        pair
+      );
+      
+      // Convert result back to LiveTradeResult format
+      if (!result.success) {
         return {
           success: false,
-          error: 'Invalid trade signal',
-          timestamp: Date.now(),
+          error: 'Trade execution blocked by governance',
+          timestamp: result.timestamp.getTime(),
           strategy,
           signal
         };
       }
 
-      if (orderResult.success) {
+      // Trade executed successfully through governance
+      // Use result from ExecutionManager (includes orderId if available)
+      const orderResult = {
+        success: true,
+        orderId: result.orderId || `gov_${Date.now()}`,
+        price: result.executionPrice || positionSize.price,
+        quantity: result.quantity || positionSize.quantity
+      };
+
+      if (result.success && orderResult.success) {
         // Debug logging
         console.log(`[TRADE EXECUTION] ${signal === TradeSignal.BUY ? 'BUY' : 'SELL'} order executed for ${pair}`);
         console.log(`  Price: $${positionSize.price.toFixed(2)}, Quantity: ${positionSize.quantity.toFixed(8)}`);
@@ -350,9 +391,11 @@ export class LiveTradingEngine extends EventEmitter {
           signal
         };
       } else {
+        // This should never be reached since ExecutionManager blocks failed trades
+        // But keeping for safety
         return {
           success: false,
-          error: orderResult.error || 'Order placement failed',
+          error: 'Trade execution failed',
           timestamp: Date.now(),
           strategy,
           signal
@@ -489,6 +532,11 @@ export class LiveTradingEngine extends EventEmitter {
     
     try {
       console.log(`[TRADING LOOP] Processing tick for ${pair}: $${marketData.price.toFixed(2)}`);
+      
+      // PHASE 2: Update price history for regime detection
+      if (this.regimeGate) {
+        this.regimeGate.updatePriceHistory(pair, marketData.price);
+      }
       
       // 1. Generate technical signal
       const technicalSignal = await this.generateTechnicalSignal(pair, marketData);

@@ -4,6 +4,8 @@ import { MarketDataService, MarketData } from './marketDataService';
 import { StrategyService } from './strategyService';
 import { getQuantApiClient } from './quant/quantApiClient';
 import { blendSignals } from './quant/signalBlender';
+import { ExecutionManager } from '../../core/execution_manager';
+import { createTradeRequest } from '../../core/governance_integration';
 
 export interface ProductionTrade {
   id: string;
@@ -53,13 +55,15 @@ export interface ProductionConfig {
   enableStopLoss: boolean;
   enableTakeProfit: boolean;
   autoStopOnDrawdown: boolean;
+  executionManager?: ExecutionManager; // PHASE 1: Governance - required for execution
 }
 
 export class ProductionTradingEngine {
-  private kraken: KrakenWrapper;
+  private kraken: KrakenWrapper; // PHASE 1: Market data only
   private marketDataService: MarketDataService;
   private strategyService: StrategyService;
   private quantApiClient = getQuantApiClient();
+  private executionManager?: ExecutionManager; // PHASE 1: Governance - required for execution
   private isRunning: boolean = false;
   private trades: ProductionTrade[] = [];
   private performance: ProductionPerformance;
@@ -74,10 +78,12 @@ export class ProductionTradingEngine {
     krakenApiSecret: string,
     config: ProductionConfig
   ) {
-    this.kraken = new KrakenWrapper(krakenApiKey, krakenApiSecret);
+    this.kraken = new KrakenWrapper(krakenApiKey, krakenApiSecret); // PHASE 1: Market data only
     this.marketDataService = new MarketDataService();
-    this.strategyService = new StrategyService(this.kraken);
+    // PHASE 1: StrategyService does not receive exchange client
+    this.strategyService = new StrategyService();
     this.config = config;
+    this.executionManager = config.executionManager; // PHASE 1: Governance
     
     this.performance = {
       totalBalance: config.initialBalance,
@@ -415,12 +421,20 @@ export class ProductionTradingEngine {
 
   /**
    * Execute buy order
+   * 
+   * PHASE 1: All execution must go through ExecutionManager.
    */
   private async executeBuyOrder(pair: string, price: number, strategy: string): Promise<void> {
     try {
+      // PHASE 1: Governance - ExecutionManager is required
+      if (!this.executionManager) {
+        console.error('[PRODUCTION_TRADING_ENGINE] ⚠️ CRITICAL: ExecutionManager not configured - governance required');
+        return;
+      }
+
       // Calculate position size based on risk management
       const positionSize = this.balance * (this.config.positionSizePercentage / 100);
-      const volume = (positionSize / price).toFixed(8);
+      const amount = positionSize / price;
 
       // Check if we have enough balance
       if (positionSize > this.balance) {
@@ -428,13 +442,31 @@ export class ProductionTradingEngine {
         return;
       }
 
-      // Execute order on Kraken
-      const orderResponse = await this.kraken.addOrder({
+      // PHASE 1: Create TradeRequest and execute through ExecutionManager
+      const request = createTradeRequest({
+        strategy,
         pair,
-        type: 'buy',
-        ordertype: 'market',
-        volume
+        action: 'buy',
+        amount,
+        price,
+        stopLoss: price * 0.95,
+        takeProfit: price * 1.02
       });
+
+      // Execute through ExecutionManager (governance enforced)
+      const result = await this.executionManager.executeTrade(request);
+
+      if (!result.success) {
+        console.warn(`[PRODUCTION_TRADING_ENGINE] Trade execution blocked by governance: ${pair}`);
+        return;
+      }
+
+      // Convert ExecutionManager result to orderResponse format for compatibility
+      const orderResponse = {
+        result: {
+          txid: [result.orderId || `gov_${Date.now()}`]
+        }
+      };
 
       if (orderResponse.result) {
         const trade: ProductionTrade = {
@@ -493,20 +525,44 @@ export class ProductionTradingEngine {
 
   /**
    * Execute sell order
+   * 
+   * PHASE 1: All execution must go through ExecutionManager.
    */
   private async executeSellOrder(pair: string, price: number, strategy: string): Promise<void> {
     try {
-      // For now, we'll implement a simple sell logic
-      // In a real implementation, you'd check for existing positions
-      const positionSize = this.balance * (this.config.positionSizePercentage / 100);
-      const volume = (positionSize / price).toFixed(8);
+      // PHASE 1: Governance - ExecutionManager is required
+      if (!this.executionManager) {
+        console.error('[PRODUCTION_TRADING_ENGINE] ⚠️ CRITICAL: ExecutionManager not configured - governance required');
+        return;
+      }
 
-      const orderResponse = await this.kraken.addOrder({
+      // Calculate position size
+      const positionSize = this.balance * (this.config.positionSizePercentage / 100);
+      const amount = positionSize / price;
+
+      // PHASE 1: Create TradeRequest and execute through ExecutionManager
+      const request = createTradeRequest({
+        strategy,
         pair,
-        type: 'sell',
-        ordertype: 'market',
-        volume
+        action: 'sell',
+        amount,
+        price
       });
+
+      // Execute through ExecutionManager (governance enforced)
+      const result = await this.executionManager.executeTrade(request);
+
+      if (!result.success) {
+        console.warn(`[PRODUCTION_TRADING_ENGINE] Trade execution blocked by governance: ${pair}`);
+        return;
+      }
+
+      // Convert ExecutionManager result to orderResponse format for compatibility
+      const orderResponse = {
+        result: {
+          txid: [result.orderId || `gov_${Date.now()}`]
+        }
+      };
 
       if (orderResponse.result) {
         const trade: ProductionTrade = {

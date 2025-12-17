@@ -2,6 +2,8 @@ import { LiveTradingEngine } from './liveTradingEngine';
 import { LiveTrade } from '../types/index';
 import { KrakenWrapper } from './krakenWrapper';
 import { RiskManager } from './riskManager';
+import { ExecutionManager } from '../../core/execution_manager';
+import { createTradeRequest } from '../../core/governance_integration';
 
 export interface RealTrade extends LiveTrade {
   orderId?: string;
@@ -17,6 +19,7 @@ export interface RealTradingConfig {
   maxDailyLoss: number;
   enableRealTrading: boolean;
   testMode: boolean;
+  executionManager?: ExecutionManager; // PHASE 1: Governance - required for execution
 }
 
 export class RealTradingEngine extends LiveTradingEngine {
@@ -25,13 +28,19 @@ export class RealTradingEngine extends LiveTradingEngine {
   private isRealTrading: boolean = false;
   private config: RealTradingConfig;
   private realTrades: RealTrade[] = [];
+  private executionManager?: ExecutionManager; // PHASE 1: Governance
 
   constructor(config: RealTradingConfig) {
-    super();
+    // PHASE 1: Pass executionManager to parent if provided
+    super({
+      ...config,
+      executionManager: config.executionManager
+    } as any);
     this.config = config;
     this.kraken = new KrakenWrapper(config.apiKey, config.apiSecret);
     this.riskManager = new RiskManager();
     this.isRealTrading = config.enableRealTrading;
+    this.executionManager = config.executionManager;
   }
 
   /**
@@ -55,6 +64,8 @@ export class RealTradingEngine extends LiveTradingEngine {
 
   /**
    * Execute a real trade with Kraken API
+   * 
+   * PHASE 1: All execution must go through ExecutionManager for governance enforcement.
    */
   async executeRealTrade(trade: Omit<RealTrade, 'id' | 'timestamp' | 'status'>): Promise<RealTrade> {
     try {
@@ -66,34 +77,42 @@ export class RealTradingEngine extends LiveTradingEngine {
         status: 'pending'
       };
 
-      // Risk check before execution
-      const riskCheck = await this.performRiskCheck(realTrade);
-      if (!riskCheck.allowed) {
+      // PHASE 1: Governance - ExecutionManager is required
+      if (!this.executionManager) {
+        console.error('[REAL_TRADING_ENGINE] ⚠️ CRITICAL: ExecutionManager not configured - governance required');
         realTrade.status = 'cancelled';
-        console.warn(`Trade cancelled due to risk: ${riskCheck.reason}`);
         return realTrade;
       }
 
-      // Execute trade if real trading is enabled
-      if (this.isRealTrading && !this.config.testMode) {
-        const executionResult = await this.executeKrakenOrder(realTrade);
-        if (executionResult.success) {
-          realTrade.status = 'executed';
-          realTrade.orderId = executionResult.orderId;
-          realTrade.executionPrice = executionResult.executionPrice;
-          realTrade.fees = executionResult.fees;
-          realTrade.slippage = executionResult.slippage;
-        } else {
-          realTrade.status = 'failed';
-          console.error('Trade execution failed:', executionResult.error);
-        }
-      } else {
-        // Simulate execution for testing
-        realTrade.status = 'executed';
-        realTrade.orderId = `sim_${Date.now()}`;
-        realTrade.executionPrice = this.getSimulatedPrice(trade.pair);
-        realTrade.fees = realTrade.executionPrice * trade.amount * 0.0026; // 0.26% Kraken fee
+      // PHASE 1: Convert to TradeRequest and execute through ExecutionManager
+      const request = createTradeRequest({
+        strategy: trade.strategy || 'unknown',
+        pair: trade.pair,
+        action: trade.type === 'buy' ? 'buy' : 'sell',
+        amount: trade.amount,
+        price: trade.price || this.getSimulatedPrice(trade.pair),
+        stopLoss: trade.stopLoss,
+        takeProfit: trade.takeProfit
+      });
+
+      // Execute through ExecutionManager (governance enforced)
+      const result = await this.executionManager.executeTrade(request);
+
+      if (!result.success) {
+        // Trade blocked by governance
+        realTrade.status = 'cancelled';
+        console.warn(`[REAL_TRADING_ENGINE] Trade cancelled by governance`);
+        return realTrade;
       }
+
+      // Trade executed successfully through governance
+      realTrade.status = 'executed';
+      realTrade.orderId = result.orderId || `gov_${Date.now()}`;
+      realTrade.executionPrice = result.executionPrice || request.price;
+      
+      // Calculate fees (0.26% Kraken fee)
+      realTrade.fees = realTrade.executionPrice * trade.amount * 0.0026;
+      realTrade.slippage = Math.abs((realTrade.executionPrice - request.price) / request.price) * 100;
 
       // Add to real trades history
       this.realTrades.push(realTrade);
@@ -120,6 +139,11 @@ export class RealTradingEngine extends LiveTradingEngine {
 
   /**
    * Execute order with Kraken API
+   * 
+   * PHASE 1: DEPRECATED - This method should not be used.
+   * All execution must go through ExecutionManager.executeRealTrade().
+   * 
+   * @deprecated Use ExecutionManager.executeTrade() instead
    */
   private async executeKrakenOrder(trade: RealTrade): Promise<{
     success: boolean;
@@ -129,6 +153,16 @@ export class RealTradingEngine extends LiveTradingEngine {
     slippage?: number;
     error?: string;
   }> {
+    // PHASE 1: This method is deprecated - execution should go through ExecutionManager
+    console.error('[REAL_TRADING_ENGINE] ⚠️ CRITICAL: executeKrakenOrder() is deprecated - use ExecutionManager.executeTrade()');
+    
+    // Return failure - this method should not be called
+    return {
+      success: false,
+      error: 'Direct execution deprecated - use ExecutionManager'
+    };
+    
+    /* DEPRECATED CODE - KEPT FOR REFERENCE ONLY
     try {
       // Get current market price for slippage calculation
       const ticker = await this.kraken.getTickerInformation([trade.pair.replace('/', '')]);
@@ -142,7 +176,7 @@ export class RealTradingEngine extends LiveTradingEngine {
         volume: trade.amount.toString()
       };
 
-      // Execute order
+      // Execute order - DEPRECATED: Should use ExecutionManager
       const result = await this.kraken.addOrder(orderData);
 
       if (result.error && result.error.length > 0) {
