@@ -33,6 +33,7 @@ import { FailSafeManager } from './health/failsafe';
 import { StartupChecks } from './health/startup_checks';
 import { DataIntegrityVerifier } from './health/data_integrity';
 import { AlertManager } from './alerts/alert_manager';
+import { AccountManager, AccountSignalRouter } from './accounts';
 
 /**
  * Governance System
@@ -77,6 +78,10 @@ export class GovernanceSystem {
   public readonly dataIntegrityVerifier: DataIntegrityVerifier;
   public readonly alertManager: AlertManager;
 
+  // PHASE 7: Account & Entity Abstraction
+  public readonly phase7AccountManager: AccountManager | null;
+  public readonly accountSignalRouter: AccountSignalRouter | null;
+
   constructor(config?: {
     initialMode?: SystemMode;
     initialCapital?: number;
@@ -87,6 +92,8 @@ export class GovernanceSystem {
     arbitrageCapital?: number; // PHASE 3: Initial arbitrage pool capital
     enableObservability?: boolean; // PHASE 4: Enable observability (default: true)
     enableProductionHardening?: boolean; // PHASE 5: Enable production hardening (default: true)
+    enableAccountAbstraction?: boolean; // PHASE 7: Enable account abstraction (default: false)
+    phase7AccountManager?: AccountManager; // PHASE 7: Optional account manager
   }) {
     // Initialize Mode Controller
     this.modeController = new ModeController(config?.initialMode || 'OBSERVE_ONLY');
@@ -217,6 +224,23 @@ export class GovernanceSystem {
       this.startupChecks = null as any;
       this.dataIntegrityVerifier = null as any;
       this.alertManager = null as any;
+    }
+
+    // PHASE 7: Initialize account abstraction (optional)
+    if (config?.enableAccountAbstraction && config?.phase7AccountManager) {
+      this.phase7AccountManager = config.phase7AccountManager;
+      this.accountSignalRouter = new AccountSignalRouter(
+        this.phase7AccountManager,
+        this.regimeGate,
+        this.executionManager,
+        this.modeController,
+        this.accountManager, // Phase 3 StrategyCapitalAccountManager (for backward compatibility)
+        this.capitalAllocator,
+        this.observabilityHooks // PHASE 4: Observability hooks
+      );
+    } else {
+      this.phase7AccountManager = null;
+      this.accountSignalRouter = null;
     }
   }
 
@@ -403,6 +427,25 @@ export class GovernanceSystem {
   }
 
   /**
+   * PHASE 7: Execute trade for accounts (multi-account routing)
+   * 
+   * Routes strategy signals to all eligible accounts.
+   * Each account executes independently with full isolation.
+   * 
+   * Returns results for all accounts that attempted execution.
+   */
+  async executeTradeForAccounts(
+    request: TradeRequest,
+    symbol?: string
+  ): Promise<any[]> {
+    if (!this.accountSignalRouter) {
+      throw new Error('Account abstraction not enabled. Call executeTradeWithRegimeCheck() for single-account mode.');
+    }
+
+    return await this.accountSignalRouter.routeSignal(request, symbol);
+  }
+
+  /**
    * PHASE 2, 3 & 4: Execute trade with regime, capital checks, and observability
    * 
    * This method checks:
@@ -412,6 +455,8 @@ export class GovernanceSystem {
    * 4. Logs all decisions (PHASE 4 - Observability)
    * 
    * If any check fails, execution is blocked.
+   * 
+   * NOTE: For Phase 7 multi-account mode, use executeTradeForAccounts() instead.
    */
   async executeTradeWithRegimeCheck(
     request: TradeRequest,

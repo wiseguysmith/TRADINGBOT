@@ -1,13 +1,16 @@
 /**
- * Read-Only Investor API: Attribution
+ * Read-Only Operator API: Attribution
  * 
  * PHASE 4: Observability, Attribution & Replay
  * 
- * Exposes per-layer attribution for investor analysis.
+ * Exposes per-layer attribution for operator analysis.
  * READ-ONLY - No execution, no writes, no governance bypass.
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
+// HARDENING: Import bootstrap to ensure governance is initialized
+import '../../../src/lib/governance_bootstrap';
+import { getGovernanceInstance } from '../../../src/lib/governance_instance';
 
 export default async function handler(
   req: NextApiRequest,
@@ -19,39 +22,84 @@ export default async function handler(
 
   try {
     const { tradeId, strategyId, startDate, endDate } = req.query;
+    const governance = getGovernanceInstance();
 
-    // PHASE 4: Read-only access to attribution
-    // In production, this would access the attribution engine from governance system
-    
-    if (tradeId) {
-      // Get attribution for specific trade
-      // const attribution = governanceSystem.attributionEngine.attributeTrade(
-      //   governanceSystem.eventLog,
-      //   strategyId as string,
-      //   pair as string,
-      //   timestamp
-      // );
-      
-      return res.status(200).json({
-        success: true,
-        message: 'Trade attribution API - implementation pending',
-        tradeId
+    if (!governance.attributionEngine || !governance.eventLog) {
+      return res.status(503).json({
+        error: 'Observability not enabled',
+        message: 'Attribution engine is not available'
       });
     }
 
-    if (startDate && endDate) {
-      // Get attribution summary for date range
-      // const summary = governanceSystem.attributionEngine.getAttributionSummary(
-      //   governanceSystem.eventLog,
-      //   new Date(startDate as string),
-      //   new Date(endDate as string)
-      // );
-      
+    // Get attribution for specific trade (by event ID or trade details)
+    if (tradeId && typeof tradeId === 'string') {
+      // Find trade event by ID
+      const events = governance.eventLog.getAllEvents();
+      const tradeEvent = events.find(e => 
+        e.eventId === tradeId || 
+        (e.eventType === 'TRADE_EXECUTED' && (e as any).orderId === tradeId)
+      );
+
+      if (!tradeEvent) {
+        return res.status(404).json({
+          error: 'Trade not found',
+          tradeId
+        });
+      }
+
+      // Attribute the trade
+      const attribution = governance.attributionEngine.attributeTrade(
+        governance.eventLog,
+        tradeEvent.strategyId || '',
+        (tradeEvent as any).pair || '',
+        tradeEvent.timestamp
+      );
+
       return res.status(200).json({
         success: true,
-        message: 'Attribution summary API - implementation pending',
-        startDate,
-        endDate
+        attribution
+      });
+    }
+
+    // Get attribution summary for date range
+    if (startDate && endDate && typeof startDate === 'string' && typeof endDate === 'string') {
+      // Get events in range
+      const events = governance.eventLog.getEventsInRange(
+        new Date(startDate),
+        new Date(endDate)
+      );
+
+      // Calculate summary from events
+      const tradeExecuted = events.filter(e => e.eventType === 'TRADE_EXECUTED').length;
+      const tradeBlocked = events.filter(e => e.eventType === 'TRADE_BLOCKED').length;
+      const blockedByCapital = events.filter(e => 
+        e.eventType === 'TRADE_BLOCKED' && (e as any).blockingLayer === 'CAPITAL'
+      ).length;
+      const blockedByRegime = events.filter(e => 
+        e.eventType === 'TRADE_BLOCKED' && (e as any).blockingLayer === 'REGIME'
+      ).length;
+      const blockedByPermission = events.filter(e => 
+        e.eventType === 'TRADE_BLOCKED' && (e as any).blockingLayer === 'PERMISSION'
+      ).length;
+      const blockedByRisk = events.filter(e => 
+        e.eventType === 'TRADE_BLOCKED' && (e as any).blockingLayer === 'RISK'
+      ).length;
+
+      const summary = {
+        totalTrades: tradeExecuted + tradeBlocked,
+        executed: tradeExecuted,
+        blocked: tradeBlocked,
+        blockingBreakdown: {
+          CAPITAL: blockedByCapital,
+          REGIME: blockedByRegime,
+          PERMISSION: blockedByPermission,
+          RISK: blockedByRisk
+        }
+      };
+
+      return res.status(200).json({
+        success: true,
+        summary
       });
     }
 

@@ -66,23 +66,8 @@ export default function AutoBreadDashboard() {
     }
   };
 
-  // Control trading engine
-  const controlTrading = async (action: 'start' | 'stop') => {
-    try {
-      const response = await fetch('/api/trading/performance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action })
-      });
-      
-      if (response.ok) {
-        setIsActive(action === 'start');
-        fetchPerformanceData();
-      }
-    } catch (error) {
-      console.error('Failed to control trading:', error);
-    }
-  };
+  // OPERATOR INTERFACE: Removed execution controls
+  // This is a read-only operator interface - no trading controls allowed
 
   // Auto-refresh data every 5 seconds
   useEffect(() => {
@@ -394,16 +379,10 @@ export default function AutoBreadDashboard() {
                       <option value="manual-approval">✋ Manual Approval</option>
                     </select>
                   </div>
-                  <button
-                    onClick={() => controlTrading(isActive ? 'stop' : 'start')}
-                    className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 ${
-                      isActive
-                        ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg shadow-red-500/25 hover:shadow-red-500/40'
-                        : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25 hover:shadow-green-500/40'
-                    }`}
-                  >
-                    {isActive ? '🛑 Stop Trading' : '🚀 Start Trading'}
-                  </button>
+                  {/* OPERATOR INTERFACE: Execution controls removed - read-only interface */}
+                  <div className="w-full py-4 rounded-xl font-bold text-lg bg-slate-800/50 text-slate-400 border border-slate-700/50 text-center">
+                    {isActive ? '🟢 Trading Active (Read-Only View)' : '🔴 Trading Stopped (Read-Only View)'}
+                  </div>
                 </div>
               </div>
 

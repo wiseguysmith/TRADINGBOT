@@ -27,13 +27,20 @@ export enum EventType {
   REGIME_DETECTED = 'REGIME_DETECTED',
   POOL_UPDATE = 'POOL_UPDATE',
   ARB_COMPLETED = 'ARB_COMPLETED',      // PHASE 6: Arbitrage completed
-  ARB_ABORTED = 'ARB_ABORTED'           // PHASE 6: Arbitrage aborted
+  ARB_ABORTED = 'ARB_ABORTED',          // PHASE 6: Arbitrage aborted
+  RISK_BUDGET_INIT = 'RISK_BUDGET_INIT', // PHASE 8: Risk budget initialized
+  RISK_BUDGET_SCALING = 'RISK_BUDGET_SCALING', // PHASE 8: Risk budget regime scaling
+  RISK_BUDGET_DECAY = 'RISK_BUDGET_DECAY', // PHASE 8: Risk budget decay applied
+  RISK_BUDGET_RECOVERY = 'RISK_BUDGET_RECOVERY', // PHASE 8: Risk budget recovery
+  RISK_BUDGET_ALLOCATION = 'RISK_BUDGET_ALLOCATION', // PHASE 8: Strategy risk allocation changed
+  RISK_BUDGET_CHECK = 'RISK_BUDGET_CHECK' // PHASE 8: Risk budget check
 }
 
 export interface BaseEvent {
   eventId: string; // Immutable unique identifier
   timestamp: Date;
   eventType: EventType;
+  accountId?: string; // PHASE 7: Account-scoped events
   strategyId?: string;
   systemMode?: string;
   regime?: string;
@@ -141,6 +148,53 @@ export interface RegimeDetectedEvent extends BaseEvent {
   };
 }
 
+export interface RiskBudgetCheckEvent extends BaseEvent {
+  eventType: EventType.RISK_BUDGET_CHECK;
+  accountId: string;
+  strategyId: string;
+  requestedRiskPct: number;
+  allocatedRiskPct: number;
+  effectiveRiskPct: number;
+  allowed: boolean;
+  reason: string;
+}
+
+export interface RiskBudgetScalingEvent extends BaseEvent {
+  eventType: EventType.RISK_BUDGET_SCALING;
+  accountId: string;
+  regime: string;
+  confidence: number;
+  previousScalingFactor: number;
+  newScalingFactor: number;
+}
+
+export interface RiskBudgetDecayEvent extends BaseEvent {
+  eventType: EventType.RISK_BUDGET_DECAY;
+  accountId: string;
+  drawdownPct: number;
+  penaltyPct: number;
+  previousRiskPct: number;
+  newRiskPct: number;
+}
+
+export interface RiskBudgetRecoveryEvent extends BaseEvent {
+  eventType: EventType.RISK_BUDGET_RECOVERY;
+  accountId: string;
+  daysSinceDrawdown: number;
+  recoveryPct: number;
+  previousRiskPct: number;
+  newRiskPct: number;
+}
+
+export interface RiskBudgetAllocationEvent extends BaseEvent {
+  eventType: EventType.RISK_BUDGET_ALLOCATION;
+  accountId: string;
+  strategyId: string;
+  allocatedRiskPct: number;
+  weight: number;
+  performanceScore: number;
+}
+
 export type Event = 
   | SignalGeneratedEvent
   | CapitalCheckEvent
@@ -152,7 +206,12 @@ export type Event =
   | CapitalUpdateEvent
   | StrategyStateChangeEvent
   | SystemModeChangeEvent
-  | RegimeDetectedEvent;
+  | RegimeDetectedEvent
+  | RiskBudgetCheckEvent
+  | RiskBudgetScalingEvent
+  | RiskBudgetDecayEvent
+  | RiskBudgetRecoveryEvent
+  | RiskBudgetAllocationEvent;
 
 /**
  * Event Log

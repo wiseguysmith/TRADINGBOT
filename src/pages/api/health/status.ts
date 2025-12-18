@@ -1,5 +1,5 @@
 /**
- * Read-Only Status Endpoint
+ * Read-Only Operator Status Endpoint
  * 
  * PHASE 5: Production Hardening & Resilience
  * 
@@ -8,6 +8,9 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
+// HARDENING: Import bootstrap to ensure governance is initialized
+import '../../../src/lib/governance_bootstrap';
+import { getGovernanceInstance } from '../../../src/lib/governance_instance';
 
 export default async function handler(
   req: NextApiRequest,
@@ -18,19 +21,24 @@ export default async function handler(
   }
 
   try {
-    // PHASE 5: Read-only status
-    // In production, this would access governance system status
-    
-    // const status = governanceSystem.getStatus();
-    // return res.status(200).json({ success: true, status });
-    
+    const governance = getGovernanceInstance();
+    const status = governance.getStatus();
+
+    // Get current regime if available
+    let currentRegime = null;
+    if (governance.regimeDetector) {
+      // Get regime for a default symbol (or first available)
+      currentRegime = governance.regimeDetector.getCurrentRegime('BTC/USD');
+    }
+
     return res.status(200).json({
       success: true,
-      message: 'Status API - implementation pending',
       status: {
-        mode: 'OBSERVE_ONLY',
-        riskState: 'ACTIVE',
-        tradingAllowed: false,
+        ...status,
+        currentRegime: currentRegime ? {
+          regime: currentRegime.regime,
+          confidence: currentRegime.confidence
+        } : null,
         timestamp: new Date().toISOString()
       }
     });

@@ -1,13 +1,17 @@
 /**
- * Read-Only Investor API: Replay
+ * Read-Only Operator API: Replay
  * 
  * PHASE 4: Observability, Attribution & Replay
  * 
- * Exposes replay functionality for investor analysis.
+ * Exposes replay functionality for operator analysis.
  * READ-ONLY - No execution, no writes, no governance bypass.
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
+// HARDENING: Import bootstrap to ensure governance is initialized
+import '../../../src/lib/governance_bootstrap';
+import { getGovernanceInstance } from '../../../src/lib/governance_instance';
+import { ReplayEngine } from '../../../core/replay/replay_engine';
 
 export default async function handler(
   req: NextApiRequest,
@@ -19,39 +23,67 @@ export default async function handler(
 
   try {
     const { date, startDate, endDate } = req.query;
+    const governance = getGovernanceInstance();
 
-    // PHASE 4: Read-only replay
-    // In production, this would access the replay engine from governance system
-    
-    if (date) {
-      // Replay specific day
-      // const result = governanceSystem.replayEngine.replayDay(
-      //   date as string,
-      //   governanceSystem.eventLog,
-      //   governanceSystem.snapshotGenerator.getSnapshot(date as string)
-      // );
-      
-      return res.status(200).json({
-        success: true,
-        message: 'Day replay API - implementation pending',
-        date
+    if (!governance.eventLog || !governance.snapshotGenerator) {
+      return res.status(503).json({
+        error: 'Observability not enabled',
+        message: 'Replay engine requires event log and snapshot generator'
       });
     }
 
-    if (startDate && endDate) {
-      // Replay date range
-      // const results = governanceSystem.replayEngine.replayDays(
-      //   startDate as string,
-      //   endDate as string,
-      //   governanceSystem.eventLog,
-      //   snapshotsMap
-      // );
-      
+    const replayEngine = new ReplayEngine();
+
+    // Replay specific day
+    if (date && typeof date === 'string') {
+      const snapshot = governance.snapshotGenerator.getSnapshot(date);
+      const result = replayEngine.replayDay(
+        date,
+        governance.eventLog,
+        snapshot
+      );
+
       return res.status(200).json({
         success: true,
-        message: 'Date range replay API - implementation pending',
+        result: {
+          ...result,
+          outcome: {
+            ...result.outcome,
+            finalState: {
+              ...result.outcome.finalState
+            }
+          }
+        }
+      });
+    }
+
+    // Replay date range
+    if (startDate && endDate && typeof startDate === 'string' && typeof endDate === 'string') {
+      // Build snapshots map
+      const allSnapshots = governance.snapshotGenerator.getAllSnapshots();
+      const snapshotsMap = new Map<string, any>();
+      allSnapshots.forEach(s => {
+        snapshotsMap.set(s.date, s);
+      });
+
+      const results = replayEngine.replayDays(
         startDate,
-        endDate
+        endDate,
+        governance.eventLog,
+        snapshotsMap
+      );
+
+      return res.status(200).json({
+        success: true,
+        results: results.map(r => ({
+          ...r,
+          outcome: {
+            ...r.outcome,
+            finalState: {
+              ...r.outcome.finalState
+            }
+          }
+        }))
       });
     }
 

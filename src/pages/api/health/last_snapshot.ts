@@ -1,5 +1,5 @@
 /**
- * Read-Only Last Snapshot Endpoint
+ * Read-Only Operator Last Snapshot Endpoint
  * 
  * PHASE 5: Production Hardening & Resilience
  * 
@@ -8,6 +8,9 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
+// HARDENING: Import bootstrap to ensure governance is initialized
+import '../../../src/lib/governance_bootstrap';
+import { getGovernanceInstance } from '../../../src/lib/governance_instance';
 
 export default async function handler(
   req: NextApiRequest,
@@ -18,16 +21,37 @@ export default async function handler(
   }
 
   try {
-    // PHASE 5: Read-only last snapshot
-    // In production, this would access the snapshot generator
-    
-    // const snapshot = governanceSystem.snapshotGenerator.getMostRecentSnapshot();
-    // return res.status(200).json({ success: true, snapshot });
-    
+    const governance = getGovernanceInstance();
+
+    if (!governance.snapshotGenerator) {
+      return res.status(503).json({
+        error: 'Observability not enabled',
+        message: 'Snapshot generator is not available'
+      });
+    }
+
+    const allSnapshots = governance.snapshotGenerator.getAllSnapshots();
+    const mostRecent = allSnapshots.length > 0 
+      ? allSnapshots[allSnapshots.length - 1]
+      : null;
+
+    if (!mostRecent) {
+      return res.status(404).json({
+        error: 'No snapshots available',
+        message: 'No snapshots have been generated yet'
+      });
+    }
+
     return res.status(200).json({
       success: true,
-      message: 'Last snapshot API - implementation pending',
-      snapshot: null
+      snapshot: {
+        ...mostRecent,
+        strategyPnL: Object.fromEntries(mostRecent.strategyPnL),
+        strategyDrawdowns: Object.fromEntries(mostRecent.strategyDrawdowns),
+        capitalAllocation: Object.fromEntries(mostRecent.capitalAllocation),
+        eventTypes: Object.fromEntries(mostRecent.eventTypes),
+        timestamp: mostRecent.timestamp.toISOString()
+      }
     });
 
   } catch (error: any) {

@@ -166,6 +166,20 @@ export class ReplayEngine {
 
   /**
    * Replay multiple days
+   * 
+   * HARDENING: Verified safe and deterministic.
+   * 
+   * This method:
+   * - Is read-only (no execution)
+   * - Uses recorded events and snapshots
+   * - Produces deterministic results
+   * - Never triggers real trades
+   * 
+   * @param startDate Start date (YYYY-MM-DD)
+   * @param endDate End date (YYYY-MM-DD)
+   * @param eventLog Event log containing events for the date range
+   * @param snapshots Map of date -> snapshot for validation
+   * @returns Array of replay results, one per day
    */
   replayDays(
     startDate: string,
@@ -177,9 +191,17 @@ export class ReplayEngine {
     const start = new Date(startDate);
     const end = new Date(endDate);
     
+    // Validate date range
+    if (start > end) {
+      throw new Error(`Invalid date range: start date ${startDate} is after end date ${endDate}`);
+    }
+    
+    // Replay each day in the range
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const dateStr = this.formatDate(d);
       const snapshot = snapshots.get(dateStr);
+      
+      // Replay day (read-only, deterministic)
       const result = this.replayDay(dateStr, eventLog, snapshot);
       results.push(result);
     }

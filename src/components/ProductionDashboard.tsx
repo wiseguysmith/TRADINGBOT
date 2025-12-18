@@ -36,32 +36,8 @@ export default function ProductionDashboard({ className = '' }: ProductionDashbo
     }
   };
 
-  const controlProduction = async (action: 'start' | 'stop' | 'emergency_stop') => {
-    try {
-      const response = await fetch('/api/trading/production', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action })
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        await fetchProductionData();
-        if (action === 'start') {
-          alert('🚀 Production trading started! Monitor carefully.');
-        } else if (action === 'stop') {
-          alert('🛑 Production trading stopped safely.');
-        } else if (action === 'emergency_stop') {
-          alert('🚨 EMERGENCY STOP EXECUTED - All trading halted!');
-        }
-      } else {
-        alert(`Error: ${result.error}`);
-      }
-    } catch (error) {
-      alert('Failed to control production engine');
-    }
-  };
+  // OPERATOR INTERFACE: Removed execution controls
+  // This is a read-only operator interface - no trading controls allowed
 
   useEffect(() => {
     fetchProductionData();
@@ -124,30 +100,11 @@ export default function ProductionDashboard({ className = '' }: ProductionDashbo
             <h1 className="text-4xl font-bold text-white mb-2">🚀 Production Trading</h1>
             <p className="text-gray-300">Live trading with real Kraken API - Dynamic XRP Goal</p>
           </div>
+          {/* OPERATOR INTERFACE: Execution controls removed - read-only interface */}
           <div className="flex space-x-4">
-            {!isActive ? (
-              <button
-                onClick={() => controlProduction('start')}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold"
-              >
-                🚀 Start Trading
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={() => controlProduction('stop')}
-                  className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-lg font-semibold"
-                >
-                  🛑 Stop Trading
-                </button>
-                <button
-                  onClick={() => controlProduction('emergency_stop')}
-                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold"
-                >
-                  🚨 Emergency Stop
-                </button>
-              </>
-            )}
+            <div className="bg-slate-700/50 text-slate-300 px-6 py-3 rounded-lg font-semibold border border-slate-600">
+              {isActive ? '🟢 Trading Active (Read-Only)' : '🔴 Trading Stopped (Read-Only)'}
+            </div>
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 /**
- * Read-Only Health Endpoint
+ * Read-Only Operator Health Endpoint
  * 
  * PHASE 5: Production Hardening & Resilience
  * 
@@ -8,6 +8,9 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
+// HARDENING: Import bootstrap to ensure governance is initialized
+import '../../../src/lib/governance_bootstrap';
+import { getGovernanceInstance } from '../../../src/lib/governance_instance';
 
 export default async function handler(
   req: NextApiRequest,
@@ -18,19 +21,24 @@ export default async function handler(
   }
 
   try {
-    // PHASE 5: Read-only health status
-    // In production, this would access the health monitor from governance system
-    
-    // const health = governanceSystem.healthMonitor.getSystemHealth();
-    // return res.status(200).json({ success: true, health });
-    
+    const governance = getGovernanceInstance();
+    const health = governance.getSystemHealth();
+
+    if (!health) {
+      return res.status(503).json({
+        error: 'Health monitoring not enabled',
+        message: 'Health monitor is not available'
+      });
+    }
+
     return res.status(200).json({
       success: true,
-      message: 'Health API - implementation pending',
       health: {
-        healthy: true,
-        uptime: 0,
-        timestamp: new Date().toISOString()
+        ...health,
+        lastMarketDataUpdate: health.lastMarketDataUpdate?.toISOString() || null,
+        lastEventLogWrite: health.lastEventLogWrite?.toISOString() || null,
+        lastSnapshotWrite: health.lastSnapshotWrite?.toISOString() || null,
+        timestamp: health.timestamp.toISOString()
       }
     });
 

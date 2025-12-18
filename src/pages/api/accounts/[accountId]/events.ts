@@ -1,29 +1,48 @@
 /**
- * Read-Only Operator API: Events
+ * Read-Only Operator Account Events API Route
  * 
- * PHASE 4: Observability, Attribution & Replay
+ * PHASE 7: Account & Entity Abstraction
  * 
- * Exposes event log for operator viewing.
- * READ-ONLY - No execution, no writes, no governance bypass.
+ * Read-only endpoint for account-scoped events.
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
 // HARDENING: Import bootstrap to ensure governance is initialized
-import '../../../src/lib/governance_bootstrap';
-import { getGovernanceInstance } from '../../../src/lib/governance_instance';
-import { EventType } from '../../../core/observability/event_log';
+import '../../../../../src/lib/governance_bootstrap';
+import { getGovernanceInstance } from '../../../../../src/lib/governance_instance';
+import { EventType } from '../../../../../core/observability/event_log';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+/**
+ * GET /api/accounts/[accountId]/events
+ * 
+ * Get events for a specific account.
+ */
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed - read-only API' });
   }
 
   try {
-    const { eventType, strategyId, accountId, startDate, endDate, limit } = req.query;
+    const { accountId } = req.query;
+    const { startDate, endDate, eventType, limit } = req.query;
+
+    if (!accountId || typeof accountId !== 'string') {
+      return res.status(400).json({ error: 'Invalid accountId' });
+    }
+
     const governance = getGovernanceInstance();
+
+    if (!governance.phase7AccountManager) {
+      return res.status(503).json({
+        error: 'Account abstraction not enabled',
+        message: 'Account manager is not available'
+      });
+    }
+
+    const account = governance.phase7AccountManager.getAccount(accountId);
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found', accountId });
+    }
 
     if (!governance.eventLog) {
       return res.status(503).json({
@@ -32,21 +51,14 @@ export default async function handler(
       });
     }
 
-    let events = governance.eventLog.getAllEvents();
+    // Get all events and filter by account
+    let events = governance.eventLog.getAllEvents().filter(e => 
+      (e as any).accountId === accountId
+    );
 
     // Filter by event type
     if (eventType && typeof eventType === 'string') {
       events = events.filter(e => e.eventType === eventType as EventType);
-    }
-
-    // Filter by strategy
-    if (strategyId && typeof strategyId === 'string') {
-      events = events.filter(e => e.strategyId === strategyId);
-    }
-
-    // Filter by account (PHASE 7)
-    if (accountId && typeof accountId === 'string') {
-      events = events.filter(e => (e as any).accountId === accountId);
     }
 
     // Filter by date range
@@ -73,19 +85,16 @@ export default async function handler(
 
     return res.status(200).json({
       success: true,
+      accountId,
       events: events.map(e => ({
         ...e,
         timestamp: e.timestamp.toISOString()
       })),
       total: events.length
     });
-
   } catch (error: any) {
-    console.error('Events API error:', error);
-    return res.status(500).json({
-      error: 'Failed to fetch events',
-      details: error.message
-    });
+    console.error('[ACCOUNT_API] Error:', error);
+    return res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }
 
