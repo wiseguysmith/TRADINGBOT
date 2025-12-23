@@ -181,6 +181,12 @@ export default function OperatorOverview() {
           <Link href="/operator/events" className="text-gray-600 hover:text-gray-900">
             Events
           </Link>
+          <Link href="/operator/confidence" className="text-gray-600 hover:text-gray-900">
+            Confidence
+          </Link>
+          <Link href="/operator/simulation" className="text-gray-600 hover:text-gray-900">
+            Simulation
+          </Link>
         </nav>
 
         {/* Status Cards */}

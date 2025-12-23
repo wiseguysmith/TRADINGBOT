@@ -23,6 +23,19 @@ KRAKEN_API_KEY=your_kraken_api_key_here
 KRAKEN_API_SECRET=your_kraken_private_key_here
 
 # ========================================
+# COINBASE ADVANCED TRADE JWT (ECDSA) CREDENTIALS (ALTERNATIVE)
+# ========================================
+# Get these from: https://portal.cdp.coinbase.com/
+# Coinbase Advanced Trade uses JWT authentication with ECDSA keys
+# IMPORTANT: 
+#   - Private key is shown ONLY ONCE at creation - save it securely
+#   - If lost, you must rotate/regenerate the key
+#   - No passphrase exists for JWT authentication (unlike legacy HMAC)
+#   - Key ID format: organizations/{org-id}/apiKeys/{key-id}
+COINBASE_JWT_KEY_ID=your_key_id_here
+COINBASE_JWT_PRIVATE_KEY=your_private_key_here
+
+# ========================================
 # TWILIO SMS CONFIGURATION (OPTIONAL)
 # ========================================
 # Get these from: https://console.twilio.com/
@@ -39,6 +52,38 @@ NOTIFICATION_PHONE_NUMBER=your_personal_phone_number_here
 MAX_DRAWDOWN_PERCENTAGE=25
 RISK_PER_TRADE_PERCENTAGE=20
 VOLATILITY_LOOKBACK_PERIOD=14
+
+# ========================================
+# PAPER TRADING CONFIGURATION
+# ========================================
+# Paper trading uses REAL market data but SIMULATED execution
+# Set TRADING_MODE=simulation to enable paper trading mode
+# Paper trading is safe - no real orders are placed
+TRADING_MODE=real
+# Options: 'real' (live trading) or 'simulation' (paper trading)
+
+# Initial capital for paper trading (fake money)
+PAPER_TRADING_INITIAL_CAPITAL=100
+
+# Trading pairs for paper trading (comma-separated)
+PAPER_TRADING_PAIRS=BTC/USD,ETH/USD
+
+# Simulation parameters (optional - defaults shown)
+SIMULATION_LATENCY_MS=100
+SIMULATION_FEES_MAKER=0.001
+SIMULATION_FEES_TAKER=0.002
+
+# ========================================
+# CONFIDENCE ACCUMULATION (PHASE 10)
+# ========================================
+# Configuration for confidence accumulation before live trading
+CONFIDENCE_TARGET_TRADES=500
+CONFIDENCE_MIN_PER_REGIME=167
+CONFIDENCE_TRADING_PAIRS=BTC/USD,ETH/USD
+CONFIDENCE_STRATEGIES=momentum,mean_reversion,trend_following,volatility,statistical_arb
+CONFIDENCE_TRADE_INTERVAL_MS=60000
+CONFIDENCE_REPORT_INTERVAL_HOURS=24
+CONFIDENCE_MAX_RUNTIME_DAYS=30
 
 # ========================================
 # DEVELOPMENT SETTINGS

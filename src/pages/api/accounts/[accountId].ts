@@ -8,8 +8,8 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 // HARDENING: Import bootstrap to ensure governance is initialized
-import '../../../../src/lib/governance_bootstrap';
-import { getGovernanceInstance } from '../../../../src/lib/governance_instance';
+import '../../../../lib/governance_bootstrap';
+import { getGovernanceInstance } from '../../../../lib/governance_instance';
 
 /**
  * GET /api/accounts/[accountId]

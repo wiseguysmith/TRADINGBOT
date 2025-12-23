@@ -12,6 +12,9 @@
 // PHASE 1: Export adapters - only ExecutionManager should import these
 export { KrakenAdapter } from './krakenAdapter';
 
+// PHASE 8: Export simulated execution adapter
+export { SimulatedExecutionAdapter } from './simulatedExecutionAdapter';
+
 // Re-export for backward compatibility during migration
 // TODO: Remove after all code is migrated
 export { KrakenAdapter as KrakenWrapper } from './krakenAdapter';

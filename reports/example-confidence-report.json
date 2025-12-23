@@ -1,0 +1,188 @@
+{
+  "generatedAt": "2024-01-15T12:00:00.000Z",
+  "reportPeriod": {
+    "start": "2024-01-01T00:00:00.000Z",
+    "end": "2024-01-15T12:00:00.000Z"
+  },
+  "coverage": {
+    "totalTrades": 523,
+    "coverageByRegime": {
+      "FAVORABLE": {
+        "regime": "FAVORABLE",
+        "totalTrades": 178,
+        "tradesWithMetrics": 178,
+        "minimumRequired": 167,
+        "coveragePercentage": 106.6,
+        "isCovered": true,
+        "firstTradeTimestamp": "2024-01-01T10:15:00.000Z",
+        "lastTradeTimestamp": "2024-01-15T11:45:00.000Z"
+      },
+      "UNFAVORABLE": {
+        "regime": "UNFAVORABLE",
+        "totalTrades": 172,
+        "tradesWithMetrics": 172,
+        "minimumRequired": 167,
+        "coveragePercentage": 103.0,
+        "isCovered": true,
+        "firstTradeTimestamp": "2024-01-02T08:30:00.000Z",
+        "lastTradeTimestamp": "2024-01-15T11:30:00.000Z"
+      },
+      "UNKNOWN": {
+        "regime": "UNKNOWN",
+        "totalTrades": 173,
+        "tradesWithMetrics": 173,
+        "minimumRequired": 167,
+        "coveragePercentage": 103.6,
+        "isCovered": true,
+        "firstTradeTimestamp": "2024-01-01T09:00:00.000Z",
+        "lastTradeTimestamp": "2024-01-15T11:50:00.000Z"
+      }
+    },
+    "allRegimesCovered": true,
+    "overallCoveragePercentage": 104.6,
+    "minimumRequiredPerRegime": 167
+  },
+  "confidence": {
+    "strategies": {
+      "momentum": {
+        "strategyId": "momentum",
+        "totalTrades": 145,
+        "tradesWithMetrics": 145,
+        "averageConfidenceScore": 92.3,
+        "worstCaseConfidenceScore": 78.5,
+        "confidenceScoreStdDev": 8.2,
+        "isConfident": true
+      },
+      "mean_reversion": {
+        "strategyId": "mean_reversion",
+        "totalTrades": 128,
+        "tradesWithMetrics": 128,
+        "averageConfidenceScore": 85.2,
+        "worstCaseConfidenceScore": 62.1,
+        "confidenceScoreStdDev": 12.5,
+        "isConfident": false
+      },
+      "trend_following": {
+        "strategyId": "trend_following",
+        "totalTrades": 132,
+        "tradesWithMetrics": 132,
+        "averageConfidenceScore": 91.8,
+        "worstCaseConfidenceScore": 81.2,
+        "confidenceScoreStdDev": 7.8,
+        "isConfident": true
+      },
+      "volatility": {
+        "strategyId": "volatility",
+        "totalTrades": 118,
+        "tradesWithMetrics": 118,
+        "averageConfidenceScore": 89.5,
+        "worstCaseConfidenceScore": 75.3,
+        "confidenceScoreStdDev": 9.1,
+        "isConfident": false
+      }
+    },
+    "regimes": {
+      "FAVORABLE": {
+        "regime": "FAVORABLE",
+        "totalTrades": 178,
+        "tradesWithMetrics": 178,
+        "averageConfidenceScore": 91.2,
+        "worstCaseConfidenceScore": 78.5,
+        "confidenceScoreStdDev": 8.5,
+        "isConfident": true
+      },
+      "UNFAVORABLE": {
+        "regime": "UNFAVORABLE",
+        "totalTrades": 172,
+        "tradesWithMetrics": 172,
+        "averageConfidenceScore": 84.8,
+        "worstCaseConfidenceScore": 62.1,
+        "confidenceScoreStdDev": 11.2,
+        "isConfident": false
+      },
+      "UNKNOWN": {
+        "regime": "UNKNOWN",
+        "totalTrades": 173,
+        "tradesWithMetrics": 173,
+        "averageConfidenceScore": 86.5,
+        "worstCaseConfidenceScore": 70.2,
+        "confidenceScoreStdDev": 9.8,
+        "isConfident": false
+      }
+    },
+    "combinations": {
+      "momentum:FAVORABLE": {
+        "strategyId": "momentum",
+        "regime": "FAVORABLE",
+        "totalTrades": 62,
+        "tradesWithMetrics": 62,
+        "averageConfidenceScore": 94.2,
+        "worstCaseConfidenceScore": 82.1,
+        "confidenceScoreStdDev": 6.5,
+        "isConfident": true,
+        "isUnsafe": false
+      },
+      "mean_reversion:UNFAVORABLE": {
+        "strategyId": "mean_reversion",
+        "regime": "UNFAVORABLE",
+        "totalTrades": 45,
+        "tradesWithMetrics": 45,
+        "averageConfidenceScore": 78.5,
+        "worstCaseConfidenceScore": 62.1,
+        "confidenceScoreStdDev": 15.2,
+        "isConfident": false,
+        "isUnsafe": true,
+        "unsafeReason": "Average confidence 78.5% < 90% threshold; Worst case confidence 62.1% < 60% (too risky)"
+      }
+    },
+    "unsafeCombinations": [
+      {
+        "strategyId": "mean_reversion",
+        "regime": "UNFAVORABLE",
+        "totalTrades": 45,
+        "tradesWithMetrics": 45,
+        "averageConfidenceScore": 78.5,
+        "worstCaseConfidenceScore": 62.1,
+        "confidenceScoreStdDev": 15.2,
+        "isConfident": false,
+        "isUnsafe": true,
+        "unsafeReason": "Average confidence 78.5% < 90% threshold; Worst case confidence 62.1% < 60% (too risky)"
+      }
+    ],
+    "overallConfidenceScore": 87.5
+  },
+  "trends": {
+    "currentTrend": {
+      "period": {
+        "start": "2024-01-08T12:00:00.000Z",
+        "end": "2024-01-15T12:00:00.000Z",
+        "durationDays": 7.0
+      },
+      "snapshots": [],
+      "trend": "IMPROVING",
+      "trendStrength": 0.27,
+      "averageConfidence": 87.5,
+      "confidenceChange": 2.3,
+      "confidenceChangePct": 2.7
+    },
+    "recentTrends": [],
+    "overallTrend": "IMPROVING",
+    "trendConfidence": 0.725
+  },
+  "overallConfidence": 87.5,
+  "isReadyForLiveTrading": false,
+  "readinessFactors": {
+    "coverageMet": true,
+    "confidenceMet": false,
+    "noUnsafeCombinations": false,
+    "trendStable": true
+  },
+  "recommendations": [
+    "Overall confidence 87.5% is below 90% threshold. Need 2.5% improvement.",
+    "Review unsafe strategy×regime combination: mean_reversion × UNFAVORABLE",
+    "Continue shadow trading to improve confidence in mean_reversion strategy"
+  ],
+  "warnings": [
+    "WARNING: 1 unsafe strategy×regime combination(s) identified. These must be addressed before live trading."
+  ]
+}

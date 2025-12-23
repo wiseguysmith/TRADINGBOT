@@ -24,6 +24,7 @@ interface Event {
   strategyId?: string;
   reason: string;
   metadata?: Record<string, any>;
+  executionType?: 'SIMULATED' | 'REAL' | 'SHADOW' | 'SENTINEL';
 }
 
 export default function OperatorEvents() {
@@ -36,7 +37,8 @@ export default function OperatorEvents() {
     eventType: eventType as string || '',
     accountId: accountId as string || '',
     startDate: startDate as string || '',
-    endDate: endDate as string || ''
+    endDate: endDate as string || '',
+    executionType: '' as string
   });
 
   const fetchEvents = async () => {
@@ -104,6 +106,16 @@ export default function OperatorEvents() {
     return 'text-gray-600 bg-gray-50';
   };
 
+  const getExecutionTypeColor = (executionType?: string) => {
+    switch (executionType) {
+      case 'SIMULATED': return 'text-blue-600 bg-blue-50';
+      case 'REAL': return 'text-green-600 bg-green-50';
+      case 'SHADOW': return 'text-gray-600 bg-gray-50';
+      case 'SENTINEL': return 'text-orange-600 bg-orange-50';
+      default: return 'text-gray-400 bg-gray-50';
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 p-8">
@@ -153,11 +165,17 @@ export default function OperatorEvents() {
           <Link href="/operator/events" className="text-blue-600 font-medium border-b-2 border-blue-600 pb-2">
             Events
           </Link>
+          <Link href="/operator/confidence" className="text-gray-600 hover:text-gray-900">
+            Confidence
+          </Link>
+          <Link href="/operator/simulation" className="text-gray-600 hover:text-gray-900">
+            Simulation
+          </Link>
         </nav>
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
               <select
@@ -166,11 +184,26 @@ export default function OperatorEvents() {
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
               >
                 <option value="">All Types</option>
+                <option value="TRADE_EXECUTED">Trade Executed</option>
                 <option value="SYSTEM_MODE_CHANGE">System Mode Change</option>
                 <option value="STRATEGY_STATE_CHANGE">Strategy State Change</option>
                 <option value="TRADE_BLOCKED">Trade Blocked</option>
                 <option value="RISK_BUDGET_DECAY">Risk Budget Decay</option>
                 <option value="RISK_BUDGET_RECOVERY">Risk Budget Recovery</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Execution Type</label>
+              <select
+                value={filters.executionType}
+                onChange={(e) => setFilters({ ...filters, executionType: e.target.value })}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              >
+                <option value="">All</option>
+                <option value="SIMULATED">SIMULATED</option>
+                <option value="REAL">REAL</option>
+                <option value="SHADOW">SHADOW</option>
+                <option value="SENTINEL">SENTINEL</option>
               </select>
             </div>
             <div>
@@ -191,12 +224,26 @@ export default function OperatorEvents() {
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
               />
             </div>
-            <div className="flex items-end">
+            <div className="flex items-end space-x-2">
               <button
-                onClick={() => setFilters({ eventType: '', accountId: '', startDate: '', endDate: '' })}
-                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm font-medium"
+                onClick={() => {
+                  setFilters({ 
+                    eventType: 'TRADE_EXECUTED', 
+                    executionType: 'SIMULATED', 
+                    accountId: '', 
+                    startDate: '', 
+                    endDate: '' 
+                  });
+                }}
+                className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-md text-sm font-medium"
               >
-                Clear Filters
+                SIM Trades
+              </button>
+              <button
+                onClick={() => setFilters({ eventType: '', executionType: '', accountId: '', startDate: '', endDate: '' })}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm font-medium"
+              >
+                Clear
               </button>
             </div>
           </div>
@@ -205,9 +252,11 @@ export default function OperatorEvents() {
         {/* Events List */}
         {events.length === 0 ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-            <p className="text-gray-500 text-lg">No abnormal events found</p>
+            <p className="text-gray-500 text-lg">No events found</p>
             <p className="text-gray-400 text-sm mt-2">
-              This is good - no abnormal events means the system is operating normally.
+              {filters.executionType || filters.eventType === 'TRADE_EXECUTED' 
+                ? 'No events match the current filters.'
+                : 'This is good - no abnormal events means the system is operating normally.'}
             </p>
           </div>
         ) : (
@@ -221,6 +270,11 @@ export default function OperatorEvents() {
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${getEventTypeColor(event.eventType)}`}>
                           {event.eventType}
                         </span>
+                        {event.executionType && (
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getExecutionTypeColor(event.executionType)}`}>
+                            {event.executionType}
+                          </span>
+                        )}
                         {event.accountId && (
                           <span className="text-xs text-gray-500">
                             Account: {event.accountId}

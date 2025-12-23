@@ -33,6 +33,7 @@ export function initializeGovernance(config: {
   enableProductionHardening?: boolean;
   enableAccountAbstraction?: boolean;
   phase7AccountManager?: any;
+  executionMode?: 'SIMULATION' | 'REAL'; // PHASE 8: Execution mode
 }): void {
   if (governanceInstance !== null) {
     throw new Error('Governance system already initialized. Cannot reinitialize.');

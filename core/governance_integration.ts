@@ -13,7 +13,7 @@
 import { ModeController, SystemMode } from './mode_controller';
 import { RiskGovernor, RiskState } from '../src/services/riskGovernor';
 import { PermissionGate } from './permission_gate';
-import { ExecutionManager } from './execution_manager';
+import { ExecutionManager, ExecutionMode } from './execution_manager';
 import { TradeRequest, TradeResult } from '../src/services/riskGovernor';
 import { RegimeDetector, MarketRegime } from './regime_detector';
 import { StrategyMetadataRegistry, registerDefaultStrategies } from './strategy_metadata';
@@ -94,6 +94,8 @@ export class GovernanceSystem {
     enableProductionHardening?: boolean; // PHASE 5: Enable production hardening (default: true)
     enableAccountAbstraction?: boolean; // PHASE 7: Enable account abstraction (default: false)
     phase7AccountManager?: AccountManager; // PHASE 7: Optional account manager
+    executionMode?: ExecutionMode; // PHASE 8: Execution mode (SIMULATION | REAL | SHADOW, default: REAL)
+    shadowTracker?: any; // PHASE 9: Shadow execution tracker (required for SHADOW mode)
   }) {
     // Initialize Mode Controller
     this.modeController = new ModeController(config?.initialMode || 'OBSERVE_ONLY');
@@ -105,11 +107,17 @@ export class GovernanceSystem {
     this.permissionGate = new PermissionGate(this.modeController, this.riskGovernor);
 
     // Initialize Execution Manager
+    // PHASE 8: Support execution mode (SIMULATION | REAL)
+    // PHASE 9: Support SHADOW mode with shadow tracker
+    // PHASE 10: Pass regime gate for regime information in shadow mode
     this.executionManager = new ExecutionManager({
       modeController: this.modeController,
       riskGovernor: this.riskGovernor,
       permissionGate: this.permissionGate,
-      exchangeClient: config?.exchangeClient
+      exchangeClient: config?.exchangeClient,
+      executionMode: config?.executionMode || 'REAL',
+      shadowTracker: config?.shadowTracker, // PHASE 9: Shadow tracker for SHADOW mode
+      regimeGate: this.regimeGate || undefined // PHASE 10: Regime gate for regime information
     });
 
     // PHASE 2: Initialize regime-aware governance

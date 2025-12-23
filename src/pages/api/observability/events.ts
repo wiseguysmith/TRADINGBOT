@@ -9,9 +9,9 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 // HARDENING: Import bootstrap to ensure governance is initialized
-import '../../../src/lib/governance_bootstrap';
-import { getGovernanceInstance } from '../../../src/lib/governance_instance';
-import { EventType } from '../../../core/observability/event_log';
+import '../../../lib/governance_bootstrap';
+import { getGovernanceInstance } from '../../../lib/governance_instance';
+import { EventType, TradeExecutedEvent } from '../../../../core/observability/event_log';
 
 export default async function handler(
   req: NextApiRequest,
@@ -22,7 +22,7 @@ export default async function handler(
   }
 
   try {
-    const { eventType, strategyId, accountId, startDate, endDate, limit } = req.query;
+    const { eventType, strategyId, accountId, startDate, endDate, limit, executionType } = req.query;
     const governance = getGovernanceInstance();
 
     if (!governance.eventLog) {
@@ -37,6 +37,17 @@ export default async function handler(
     // Filter by event type
     if (eventType && typeof eventType === 'string') {
       events = events.filter(e => e.eventType === eventType as EventType);
+    }
+
+    // Filter by execution type (for TRADE_EXECUTED events)
+    if (executionType && typeof executionType === 'string') {
+      events = events.filter(e => {
+        if (e.eventType === EventType.TRADE_EXECUTED) {
+          const tradeEvent = e as TradeExecutedEvent;
+          return tradeEvent.executionType === executionType;
+        }
+        return false; // Only TRADE_EXECUTED events have executionType
+      });
     }
 
     // Filter by strategy

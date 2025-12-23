@@ -27,6 +27,19 @@ KUCOIN_SECRET_KEY=your_kucoin_secret_key_here
 KUCOIN_PASSPHRASE=your_kucoin_passphrase_here
 
 # ========================================
+# COINBASE ADVANCED TRADE JWT (ECDSA) CREDENTIALS (ALTERNATIVE)
+# ========================================
+# Get these from: https://portal.cdp.coinbase.com/
+# Coinbase Advanced Trade uses JWT authentication with ECDSA keys
+# IMPORTANT: 
+#   - Private key is shown ONLY ONCE at creation - save it securely
+#   - If lost, you must rotate/regenerate the key
+#   - No passphrase exists for JWT authentication (unlike legacy HMAC)
+#   - Key ID format: organizations/{org-id}/apiKeys/{key-id}
+COINBASE_JWT_KEY_ID=your_key_id_here
+COINBASE_JWT_PRIVATE_KEY=your_private_key_here
+
+# ========================================
 # TWILIO SMS CONFIGURATION (OPTIONAL)
 # ========================================
 # Get these from: https://console.twilio.com/

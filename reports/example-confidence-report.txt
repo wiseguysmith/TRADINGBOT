@@ -1,0 +1,107 @@
+═══════════════════════════════════════════════════════════
+CONFIDENCE ACCUMULATION REPORT
+═══════════════════════════════════════════════════════════
+
+Generated: 2024-01-15T12:00:00.000Z
+Report Period: 2024-01-01T00:00:00.000Z to 2024-01-15T12:00:00.000Z
+
+🎯 OVERALL ASSESSMENT
+───────────────────────────────────────────────────────────
+Overall Confidence: 87.5/100
+Ready for Live Trading: ❌ NO
+
+Readiness Factors:
+  Coverage Met: ✅
+  Confidence Met: ❌
+  No Unsafe Combinations: ❌
+  Trend Stable: ✅
+
+📊 REGIME COVERAGE
+───────────────────────────────────────────────────────────
+Total Shadow Trades: 523
+Overall Coverage: 104.6%
+All Regimes Covered: ✅ YES
+
+Coverage by Regime:
+  ✅ FAVORABLE:
+    Trades: 178/167 (106.6%)
+    First Trade: 2024-01-01T10:15:00.000Z
+    Last Trade: 2024-01-15T11:45:00.000Z
+  ✅ UNFAVORABLE:
+    Trades: 172/167 (103.0%)
+    First Trade: 2024-01-02T08:30:00.000Z
+    Last Trade: 2024-01-15T11:30:00.000Z
+  ✅ UNKNOWN:
+    Trades: 173/167 (103.6%)
+    First Trade: 2024-01-01T09:00:00.000Z
+    Last Trade: 2024-01-15T11:50:00.000Z
+
+💯 CONFIDENCE ANALYSIS
+───────────────────────────────────────────────────────────
+Overall Confidence Score: 87.5/100
+
+Confidence by Strategy:
+  ✅ momentum:
+    Average: 92.3%
+    Worst Case: 78.5%
+    Std Dev: 8.2
+    Trades: 145
+  ❌ mean_reversion:
+    Average: 85.2%
+    Worst Case: 62.1%
+    Std Dev: 12.5
+    Trades: 128
+  ✅ trend_following:
+    Average: 91.8%
+    Worst Case: 81.2%
+    Std Dev: 7.8
+    Trades: 132
+  ❌ volatility:
+    Average: 89.5%
+    Worst Case: 75.3%
+    Std Dev: 9.1
+    Trades: 118
+
+Confidence by Regime:
+  ✅ FAVORABLE:
+    Average: 91.2%
+    Worst Case: 78.5%
+    Trades: 178
+  ❌ UNFAVORABLE:
+    Average: 84.8%
+    Worst Case: 62.1%
+    Trades: 172
+  ❌ UNKNOWN:
+    Average: 86.5%
+    Worst Case: 70.2%
+    Trades: 173
+
+⚠️  UNSAFE STRATEGY × REGIME COMBINATIONS
+───────────────────────────────────────────────────────────
+  ❌ mean_reversion × UNFAVORABLE:
+     Average Confidence: 78.5%
+     Worst Case: 62.1%
+     Trades: 45
+     Reason: Average confidence 78.5% < 90% threshold; Worst case confidence 62.1% < 60% (too risky)
+
+📈 CONFIDENCE TRENDS
+───────────────────────────────────────────────────────────
+Overall Trend: IMPROVING
+Trend Confidence: 72.5%
+
+Current Window (7.0 days):
+  Trend: IMPROVING
+  Average Confidence: 87.5%
+  Change: +2.3% (+2.7%)
+
+💡 RECOMMENDATIONS
+───────────────────────────────────────────────────────────
+  1. Overall confidence 87.5% is below 90% threshold. Need 2.5% improvement.
+  2. Review unsafe strategy×regime combination: mean_reversion × UNFAVORABLE
+  3. Continue shadow trading to improve confidence in mean_reversion strategy
+
+⚠️  WARNINGS
+───────────────────────────────────────────────────────────
+  1. WARNING: 1 unsafe strategy×regime combination(s) identified. These must be addressed before live trading.
+
+═══════════════════════════════════════════════════════════

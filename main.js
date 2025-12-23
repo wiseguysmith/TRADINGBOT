@@ -380,10 +380,43 @@ async function main() {
 
     // Parse command line arguments
     const command = process.argv[2];
+    const modeArg = process.argv.find(arg => arg.startsWith('--mode='));
+    const mode = modeArg ? modeArg.split('=')[1] : (process.env.TRADING_MODE || 'real');
+    
+    // Check if simulation mode is requested
+    if (mode === 'simulation' && command === 'start') {
+        console.log('\n📊 Simulation mode detected - delegating to paper trading script...\n');
+        console.log('💡 Tip: You can also run directly with: npm run paper-trading\n');
+        
+        // Delegate to TypeScript paper trading script using ts-node
+        const { execSync } = require('child_process');
+        const scriptPath = path.join(__dirname, 'scripts', 'run-paper-trading.ts');
+        
+        try {
+            // Use ts-node to run the TypeScript script
+            execSync(`npx ts-node "${scriptPath}"`, {
+                stdio: 'inherit',
+                env: { ...process.env, TRADING_MODE: 'simulation' },
+                cwd: __dirname
+            });
+        } catch (error) {
+            console.error('\n❌ Failed to start paper trading script');
+            console.error('   Make sure ts-node is installed: npm install --save-dev ts-node');
+            console.error('   Or run directly: npm run paper-trading\n');
+            process.exit(1);
+        }
+        
+        return;
+    }
     
     try {
         switch (command) {
             case 'start':
+                if (mode === 'simulation') {
+                    console.log('⚠️  Simulation mode: Use --mode=simulation with start command');
+                    console.log('   Or set TRADING_MODE=simulation in .env');
+                    console.log('   Example: node main.js start --mode=simulation\n');
+                }
                 await bot.start();
                 break;
                 
@@ -409,17 +442,19 @@ async function main() {
                 console.log(`
 🤖 AI Trading Bot - Command Line Interface
 
-Usage: node main.js [command]
+Usage: node main.js [command] [options]
 
 Commands:
-  start     - Start the trading bot
-  stop      - Stop the trading bot gracefully
-  status    - Show current bot status
-  emergency - Emergency stop (close all positions)
-  test      - Test bot initialization
+  start              - Start the trading bot
+  start --mode=simulation  - Start in paper trading mode (simulated execution)
+  stop               - Stop the trading bot gracefully
+  status             - Show current bot status
+  emergency          - Emergency stop (close all positions)
+  test               - Test bot initialization
 
 Examples:
   node main.js start
+  node main.js start --mode=simulation
   node main.js status
   node main.js emergency
 
@@ -429,8 +464,17 @@ Environment Variables Required:
   KUCOIN_PASSPHRASE (for KuCoin)
   
 Optional:
+  TRADING_MODE=simulation  - Run in paper trading mode (default: real)
+  PAPER_TRADING_INITIAL_CAPITAL=100
+  PAPER_TRADING_PAIRS=BTC/USD,ETH/USD
   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
   MAX_DRAWDOWN_PERCENTAGE, RISK_PER_TRADE_PERCENTAGE
+
+Paper Trading Mode:
+  Paper trading uses REAL market data but SIMULATED execution.
+  No real orders are placed - perfect for testing strategies safely.
+  Use: node main.js start --mode=simulation
+  Or: npm run paper-trading
 
 Note: This is currently running in mock mode for demonstration.
 To connect to real exchanges, you'll need to implement the actual service classes.

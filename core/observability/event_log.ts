@@ -33,7 +33,10 @@ export enum EventType {
   RISK_BUDGET_DECAY = 'RISK_BUDGET_DECAY', // PHASE 8: Risk budget decay applied
   RISK_BUDGET_RECOVERY = 'RISK_BUDGET_RECOVERY', // PHASE 8: Risk budget recovery
   RISK_BUDGET_ALLOCATION = 'RISK_BUDGET_ALLOCATION', // PHASE 8: Strategy risk allocation changed
-  RISK_BUDGET_CHECK = 'RISK_BUDGET_CHECK' // PHASE 8: Risk budget check
+  RISK_BUDGET_CHECK = 'RISK_BUDGET_CHECK', // PHASE 8: Risk budget check
+  SHADOW_TRADE_EVALUATED = 'SHADOW_TRADE_EVALUATED', // PHASE 9: Shadow trade evaluated
+  SHADOW_PARITY_METRIC = 'SHADOW_PARITY_METRIC', // PHASE 9: Shadow parity metric computed
+  CONFIDENCE_GATE_BLOCKED = 'CONFIDENCE_GATE_BLOCKED' // VALIDATION: Confidence gate blocked REAL execution
 }
 
 export interface BaseEvent {
@@ -98,6 +101,7 @@ export interface TradeExecutedEvent extends BaseEvent {
   pair: string;
   action: 'buy' | 'sell';
   amount: number;
+  executionType?: 'SIMULATED' | 'REAL'; // PHASE 8: Execution type metadata
   price: number;
   orderId?: string;
   executedValue: number;
@@ -195,6 +199,50 @@ export interface RiskBudgetAllocationEvent extends BaseEvent {
   performanceScore: number;
 }
 
+export interface ShadowTradeEvaluatedEvent extends BaseEvent {
+  eventType: EventType.SHADOW_TRADE_EVALUATED;
+  strategyId: string;
+  pair: string;
+  action: 'buy' | 'sell';
+  simulatedExecutionPrice: number;
+  observedPriceAtDecision: number;
+  observedPriceAtLatency: number;
+  trackingId: string;
+  reason: string;
+}
+
+export interface ShadowParityMetricEvent extends BaseEvent {
+  eventType: EventType.SHADOW_PARITY_METRIC;
+  strategyId: string;
+  pair: string;
+  trackingId: string;
+  executionPriceError: number;
+  executionPriceErrorPct: number;
+  slippageError: number;
+  slippageErrorPct: number;
+  fillProbabilityMatch: number;
+  latencySensitivity: number;
+  latencySensitivityPct: number;
+  pnlDelta: number;
+  pnlDeltaPct: number;
+  horizonPerformance: number;
+  horizonPerformancePct: number;
+  reason: string;
+}
+
+export interface ConfidenceGateBlockedEvent extends BaseEvent {
+  eventType: EventType.CONFIDENCE_GATE_BLOCKED;
+  shadowTrades: number;
+  requiredShadowTrades: number;
+  runtimeDays: number;
+  requiredRuntimeDays: number;
+  confidenceScore: number;
+  requiredConfidenceScore: number;
+  allRegimesCovered: boolean;
+  noUnsafeCombinations: boolean;
+  blockingReasons: string[];
+}
+
 export type Event = 
   | SignalGeneratedEvent
   | CapitalCheckEvent
@@ -211,7 +259,10 @@ export type Event =
   | RiskBudgetScalingEvent
   | RiskBudgetDecayEvent
   | RiskBudgetRecoveryEvent
-  | RiskBudgetAllocationEvent;
+  | RiskBudgetAllocationEvent
+  | ShadowTradeEvaluatedEvent
+  | ShadowParityMetricEvent
+  | ConfidenceGateBlockedEvent;
 
 /**
  * Event Log

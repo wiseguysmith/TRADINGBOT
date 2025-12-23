@@ -7,7 +7,7 @@
  * This module adds logging WITHOUT modifying execution logic.
  */
 
-import { EventLog, EventType, CapitalCheckEvent, RegimeCheckEvent, PermissionCheckEvent, RiskCheckEvent, TradeExecutedEvent, TradeBlockedEvent, SystemModeChangeEvent, StrategyStateChangeEvent, RegimeDetectedEvent, RiskBudgetCheckEvent, RiskBudgetScalingEvent, RiskBudgetDecayEvent, RiskBudgetRecoveryEvent, RiskBudgetAllocationEvent } from './event_log';
+import { EventLog, EventType, CapitalCheckEvent, RegimeCheckEvent, PermissionCheckEvent, RiskCheckEvent, TradeExecutedEvent, TradeBlockedEvent, SystemModeChangeEvent, StrategyStateChangeEvent, RegimeDetectedEvent, RiskBudgetCheckEvent, RiskBudgetScalingEvent, RiskBudgetDecayEvent, RiskBudgetRecoveryEvent, RiskBudgetAllocationEvent, ShadowTradeEvaluatedEvent, ShadowParityMetricEvent, ConfidenceGateBlockedEvent } from './event_log';
 import { CapitalGateResult } from '../capital/capital_gate';
 import { RegimeGateResult } from '../regime_gate';
 import { PermissionResult } from '../permission_gate';
@@ -130,6 +130,7 @@ export class ObservabilityHooks {
    * Log trade executed event
    * 
    * PHASE 7: Supports account-scoped events
+   * PHASE 8: Includes executionType metadata (SIMULATED | REAL)
    */
   logTradeExecuted(
     request: TradeRequest,
@@ -139,6 +140,9 @@ export class ObservabilityHooks {
     regimeConfidence?: number,
     accountId?: string
   ): void {
+    // PHASE 8: Extract executionType from TradeResult metadata
+    const executionType = (result as any).executionType as 'SIMULATED' | 'REAL' | undefined;
+    
     const event: TradeExecutedEvent = {
       eventId: '',
       timestamp: new Date(),
@@ -148,6 +152,7 @@ export class ObservabilityHooks {
       systemMode,
       regime: regime?.toString(),
       regimeConfidence,
+      executionType, // PHASE 8: Execution type metadata
       pair: request.pair,
       action: request.action,
       amount: request.amount,
@@ -157,7 +162,10 @@ export class ObservabilityHooks {
       reason: 'Trade executed successfully',
       metadata: {
         pnl: result.pnl,
-        slippage: 0 // Would be calculated if available
+        slippage: (result as any).slippage || 0, // PHASE 8: Include slippage from simulated execution
+        fees: (result as any).fees || 0, // PHASE 8: Include fees from simulated execution
+        executionPrice: result.executionPrice,
+        quantity: result.quantity
       }
     };
 
@@ -402,6 +410,105 @@ export class ObservabilityHooks {
       weight,
       performanceScore,
       reason: `Strategy ${strategyId} allocated ${allocatedRiskPct.toFixed(2)}% risk (weight: ${weight.toFixed(3)}, score: ${performanceScore.toFixed(3)})`
+    };
+
+    this.eventLog.append(event);
+  }
+
+  /**
+   * PHASE 9: Log shadow trade evaluated
+   */
+  logShadowTradeEvaluated(
+    request: TradeRequest,
+    simulatedResult: TradeResult,
+    observedPriceAtDecision: number,
+    observedPriceAtLatency: number,
+    trackingId: string,
+    systemMode: string,
+    accountId?: string
+  ): void {
+    const event: ShadowTradeEvaluatedEvent = {
+      eventId: '',
+      timestamp: new Date(),
+      eventType: EventType.SHADOW_TRADE_EVALUATED,
+      accountId,
+      strategyId: request.strategy,
+      pair: request.pair,
+      systemMode,
+      action: request.action,
+      simulatedExecutionPrice: simulatedResult.executionPrice || request.price,
+      observedPriceAtDecision,
+      observedPriceAtLatency,
+      trackingId,
+      reason: `Shadow trade evaluated: ${request.strategy} ${request.action} ${request.pair}`
+    };
+
+    this.eventLog.append(event);
+  }
+
+  /**
+   * PHASE 9: Log shadow parity metric
+   */
+  logShadowParityMetric(
+    strategyId: string,
+    pair: string,
+    trackingId: string,
+    metrics: any, // ParityMetrics
+    accountId?: string
+  ): void {
+    const event: ShadowParityMetricEvent = {
+      eventId: '',
+      timestamp: new Date(),
+      eventType: EventType.SHADOW_PARITY_METRIC,
+      accountId,
+      strategyId,
+      pair,
+      trackingId,
+      executionPriceError: metrics.executionPriceError,
+      executionPriceErrorPct: metrics.executionPriceErrorPct,
+      slippageError: metrics.slippageError,
+      slippageErrorPct: metrics.slippageErrorPct,
+      fillProbabilityMatch: metrics.fillProbabilityMatch,
+      latencySensitivity: metrics.latencySensitivity,
+      latencySensitivityPct: metrics.latencySensitivityPct,
+      pnlDelta: metrics.pnlDelta,
+      pnlDeltaPct: metrics.pnlDeltaPct,
+      horizonPerformance: metrics.horizonPerformance,
+      horizonPerformancePct: metrics.horizonPerformancePct,
+      reason: `Parity metrics computed for ${pair} by ${strategyId}`
+    };
+
+    this.eventLog.append(event);
+  }
+
+  /**
+   * VALIDATION: Log confidence gate blocked
+   */
+  logConfidenceGateBlocked(check: {
+    shadowTrades: number;
+    requiredShadowTrades: number;
+    runtimeDays: number;
+    requiredRuntimeDays: number;
+    confidenceScore: number;
+    requiredConfidenceScore: number;
+    allRegimesCovered: boolean;
+    noUnsafeCombinations: boolean;
+    reason?: string;
+  }): void {
+    const event: any = {
+      eventId: '',
+      timestamp: new Date(),
+      eventType: EventType.CONFIDENCE_GATE_BLOCKED,
+      shadowTrades: check.shadowTrades,
+      requiredShadowTrades: check.requiredShadowTrades,
+      runtimeDays: check.runtimeDays,
+      requiredRuntimeDays: check.requiredRuntimeDays,
+      confidenceScore: check.confidenceScore,
+      requiredConfidenceScore: check.requiredConfidenceScore,
+      allRegimesCovered: check.allRegimesCovered,
+      noUnsafeCombinations: check.noUnsafeCombinations,
+      blockingReasons: check.reason ? check.reason.split('; ') : [],
+      reason: `Confidence gate blocked REAL execution: ${check.reason || 'Requirements not met'}`
     };
 
     this.eventLog.append(event);

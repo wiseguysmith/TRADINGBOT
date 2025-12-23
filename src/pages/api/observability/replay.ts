@@ -9,9 +9,9 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 // HARDENING: Import bootstrap to ensure governance is initialized
-import '../../../src/lib/governance_bootstrap';
-import { getGovernanceInstance } from '../../../src/lib/governance_instance';
-import { ReplayEngine } from '../../../core/replay/replay_engine';
+import '../../../lib/governance_bootstrap';
+import { getGovernanceInstance } from '../../../lib/governance_instance';
+import { ReplayEngine } from '../../../../core/replay/replay_engine';
 
 export default async function handler(
   req: NextApiRequest,

@@ -13,6 +13,10 @@ export const CONFIG = {
   KUCOIN_API_SECRET: process.env.KUCOIN_API_SECRET ?? "",
   KUCOIN_API_PASSPHRASE: process.env.KUCOIN_API_PASSPHRASE ?? "",
 
+  // Coinbase Advanced Trade JWT (ECDSA) - NOT legacy HMAC
+  COINBASE_JWT_KEY_ID: process.env.COINBASE_JWT_KEY_ID ?? "",
+  COINBASE_JWT_PRIVATE_KEY: process.env.COINBASE_JWT_PRIVATE_KEY ?? "",
+
   // Quant Server (Python)
   PYTHON_API_URL: process.env.PYTHON_API_URL ?? "http://localhost:8000",
 
@@ -62,8 +66,17 @@ export function validateConfig(): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
   if (CONFIG.ENV === "production") {
-    if (!CONFIG.KRAKEN_API_KEY && !CONFIG.KUCOIN_API_KEY) {
+    if (!CONFIG.KRAKEN_API_KEY && !CONFIG.KUCOIN_API_KEY && !CONFIG.COINBASE_JWT_KEY_ID) {
       errors.push("At least one exchange API key is required in production");
+    }
+    // Validate Coinbase JWT credentials if provided
+    if (CONFIG.COINBASE_JWT_KEY_ID || CONFIG.COINBASE_JWT_PRIVATE_KEY) {
+      if (!CONFIG.COINBASE_JWT_KEY_ID) {
+        errors.push("COINBASE_JWT_KEY_ID is required when using Coinbase JWT authentication");
+      }
+      if (!CONFIG.COINBASE_JWT_PRIVATE_KEY) {
+        errors.push("COINBASE_JWT_PRIVATE_KEY is required when using Coinbase JWT authentication");
+      }
     }
     if (!CONFIG.DATABASE_URL || CONFIG.DATABASE_URL.includes("file:")) {
       errors.push("Production requires PostgreSQL DATABASE_URL");
